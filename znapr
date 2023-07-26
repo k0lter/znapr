@@ -35,24 +35,39 @@ class Logger(object):
         self.is_debug = debug
         self.errors = 0
 
+    def _stdout(self, msg, level, color):
+        reset = "\033[0;m"
+        if sys.stdout.isatty():
+            sys.stdout.write(f"[{color}{level}{reset}] {msg}\n")
+        else:
+            sys.stdout.write(f"[{level}] {msg}\n")
+
     def info(self, msg):
-        self.log(f'[info] {msg}')
+        level = 'info'
+        self.log(f'[{level}] {msg}')
         if not self.is_quiet or self.is_debug:
-            sys.stdout.write(f"[\033[0;92minfo\033[0;m] {msg}\n")
+            color = "\033[0;92m"
+            self._stdout(msg, level, color)
 
     def warn(self, msg):
-        self.log(f'[warn] {msg}')
+        level = 'warn'
+        self.log(f'[{level}] {msg}')
         if not self.is_quiet or self.is_debug:
-            sys.stdout.write(f"[\033[0;93mwarn\033[0;m] {msg}\n")
+            color = "\033[0;93m"
+            self._stdout(msg, level, color)
 
     def debug(self, msg):
-        self.log(f'[debug] {msg}')
+        level = 'debug'
+        self.log(f'[{level}] {msg}')
         if self.is_debug:
-            sys.stdout.write(f"[\033[0;94mdebug\033[0;m] {msg}\n")
+            color = "\033[0;94m"
+            self._stdout(msg, level, color)
 
     def error(self, msg):
-        self.log(f'[error] {msg}')
-        sys.stdout.write(f"[\033[0;91merror\033[0;m] {msg}\n")
+        level = 'error'
+        self.log(f'[{level}] {msg}')
+        color = "\033[0;91m"
+        self._stdout(msg, level, color)
         self.errors += 1
 
     def trace(self, msg):
@@ -156,7 +171,7 @@ class AutoBackup(object):
             '--delete',
             '--archive'
         ]
-        if not self._options.quiet:
+        if not self._options.quiet and sys.stdout.isatty():
             command += ['--info=progress2', '--no-inc-recursive']
         if excludes is not None:
             for e in excludes:
