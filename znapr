@@ -196,7 +196,7 @@ class ZnaprBackup(Command, ZnaprCommand):
         command = ['zfs', 'snapshot', snapshot]
         r, _, err = self._call(command)
         if r != 0:
-            self.logger.error(f'Something went wrong while creating zfs snapshot for <data>{vol}</data>: <errdata>{err}</errdata>')
+            self.log_error(f'Something went wrong while creating zfs snapshot for <data>{vol}</data>: <errdata>{err}</errdata>')
         return r == 0
 
 
