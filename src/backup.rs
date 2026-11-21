@@ -6,9 +6,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use chrono::Local;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
-use crate::config::{Config, SshParams, Volume};
+use crate::config::{Config, SshParams, Vanished, Volume};
 use crate::logger::{enabled_debug, progress_enabled};
 use crate::progress::BackupProgress;
 use crate::report::{BackupReport, RunReport, Status, VolumeReport};
@@ -165,12 +165,43 @@ fn run_rsync(args: &[&str], parse: bool, on_percent: &mut dyn FnMut(u8)) -> (i32
     (code, stderr)
 }
 
+/// rsync: partial transfer because source files disappeared mid-run.
+const RSYNC_VANISHED: i32 = 24;
+/// Cap for `vanished: retry`. A live source can vanish again on every pass;
+/// three tries then accept (same as ignore). Upgrade path: a per-volume count.
+const VANISHED_ATTEMPTS: u32 = 3;
+
+#[derive(Debug, PartialEq, Eq)]
+enum RsyncFate {
+    Ok,
+    Retry,
+    Accept { warn: bool },
+    Failed,
+}
+
+fn on_rsync_status(policy: Vanished, code: i32, attempt: u32) -> RsyncFate {
+    if code == 0 {
+        return RsyncFate::Ok;
+    }
+    if code != RSYNC_VANISHED {
+        return RsyncFate::Failed;
+    }
+    match policy {
+        Vanished::Error => RsyncFate::Failed,
+        Vanished::Ignore => RsyncFate::Accept { warn: true },
+        Vanished::Silent => RsyncFate::Accept { warn: false },
+        Vanished::Retry if attempt < VANISHED_ATTEMPTS => RsyncFate::Retry,
+        Vanished::Retry => RsyncFate::Accept { warn: true },
+    }
+}
+
 /// Returns `Some(error)` on failure, `None` on success.
 fn backup_data(
     ssh: &SshParams,
     source: &str,
     dest: &str,
     excludes: Option<&[String]>,
+    vanished: Vanished,
     label: &str,
     progress: &mut BackupProgress,
 ) -> Option<String> {
@@ -211,37 +242,54 @@ fn backup_data(
     info!("Syncing data from [cfg]{}[/] to [cfg]{}[/]", src, dst);
 
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let (code, stderr) = if bar {
-        let id = progress.start_rsync(&format!("rsync {}", label)).unwrap();
-        let (code, stderr) = {
-            let mut cb = |pct| progress.set_rsync(id, pct);
-            run_rsync(&arg_refs, true, &mut cb)
+    for attempt in 1..=VANISHED_ATTEMPTS {
+        let (code, stderr) = if bar {
+            let id = progress.start_rsync(&format!("rsync {}", label)).unwrap();
+            let (code, stderr) = {
+                let mut cb = |pct| progress.set_rsync(id, pct);
+                run_rsync(&arg_refs, true, &mut cb)
+            };
+            progress.end_rsync(id);
+            (code, stderr)
+        } else {
+            run_rsync(&arg_refs, false, &mut |_| {})
         };
-        progress.end_rsync(id);
-        (code, stderr)
-    } else {
-        run_rsync(&arg_refs, false, &mut |_| {})
-    };
 
-    if code == 0 {
-        return None;
+        match on_rsync_status(vanished, code, attempt) {
+            RsyncFate::Ok => return None,
+            RsyncFate::Accept { warn: true } => {
+                warn!(
+                    "Files vanished during sync from [cfg]{}[/] to [cfg]{}[/] (rsync status [data]24[/]); keeping the transfer",
+                    src, dst
+                );
+                return None;
+            }
+            RsyncFate::Accept { warn: false } => return None,
+            RsyncFate::Retry => {
+                info!(
+                    "Files vanished during sync from [cfg]{}[/] to [cfg]{}[/]; retrying ([data]{}/{}[/])",
+                    src, dst, attempt, VANISHED_ATTEMPTS
+                );
+            }
+            RsyncFate::Failed => {
+                if stderr.trim().is_empty() {
+                    error!(
+                        "Something went wrong while trying to sync data from [cfg]{}[/] to [cfg]{}[/]",
+                        src, dst
+                    );
+                    return Some(format!("rsync exited with status {code}"));
+                }
+                error!(
+                    "[data]Something went wrong while trying to sync data from {} to {}[/]: [err]{}[/]",
+                    src, dst, stderr
+                );
+                return Some(stderr.trim().to_string());
+            }
+        }
     }
 
-    if stderr.trim().is_empty() {
-        error!(
-            "Something went wrong while trying to sync data from [cfg]{}[/] to [cfg]{}[/]",
-            src, dst
-        );
-
-        Some(format!("rsync exited with status {code}"))
-    } else {
-        error!(
-            "[data]Something went wrong while trying to sync data from {} to {}[/]: [err]{}[/]",
-            src, dst, stderr
-        );
-
-        Some(stderr.trim().to_string())
-    }
+    // `on_rsync_status` accepts a last 24 instead of asking for another try.
+    None
 }
 
 /// Returns `Some(error)` on failure, `None` on success.
@@ -271,6 +319,7 @@ fn backup_vol(
     parent: &str,
     name: &str,
     settings: &Volume,
+    vanished: Vanished,
     progress: &mut BackupProgress,
 ) -> VolumeReport {
     let start = Instant::now();
@@ -305,6 +354,7 @@ fn backup_vol(
         &settings.source,
         &dest,
         settings.excludes.as_deref(),
+        vanished,
         name,
         progress,
     ) {
@@ -336,7 +386,10 @@ fn backup(path: &Path, cfg: Config, progress: &mut BackupProgress) -> BackupRepo
     let mut volumes = Vec::new();
     for (name, settings) in &cfg.volumes {
         let vstart = Instant::now();
-        volumes.push(backup_vol(&ssh, &root_vol, name, settings, progress));
+        let vanished = settings.vanished.unwrap_or(cfg.vanished);
+        volumes.push(backup_vol(
+            &ssh, &root_vol, name, settings, vanished, progress,
+        ));
         info!(
             "Processing volume [cfg]{}/{}[/] took [result]{}[/]",
             root_vol,
@@ -516,6 +569,34 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn on_rsync_status_treats_only_vanished_files_as_policy() {
+        for policy in [
+            Vanished::Error,
+            Vanished::Ignore,
+            Vanished::Silent,
+            Vanished::Retry,
+        ] {
+            assert_eq!(on_rsync_status(policy, 0, 1), RsyncFate::Ok);
+            assert_eq!(on_rsync_status(policy, 23, 1), RsyncFate::Failed);
+        }
+        assert_eq!(on_rsync_status(Vanished::Error, 24, 1), RsyncFate::Failed);
+        assert_eq!(
+            on_rsync_status(Vanished::Ignore, 24, 1),
+            RsyncFate::Accept { warn: true }
+        );
+        assert_eq!(
+            on_rsync_status(Vanished::Silent, 24, 1),
+            RsyncFate::Accept { warn: false }
+        );
+        assert_eq!(on_rsync_status(Vanished::Retry, 24, 1), RsyncFate::Retry);
+        assert_eq!(on_rsync_status(Vanished::Retry, 24, 2), RsyncFate::Retry);
+        assert_eq!(
+            on_rsync_status(Vanished::Retry, 24, 3),
+            RsyncFate::Accept { warn: true }
+        );
+    }
 
     #[test]
     fn parse_percent_reads_rsync_progress2_lines() {

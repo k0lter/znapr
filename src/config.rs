@@ -7,6 +7,21 @@ use serde::Deserialize;
 
 use tracing::{info, warn};
 
+/// What to do when rsync exits 24 (source files vanished mid-transfer).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Vanished {
+    /// Fail the volume and skip the snapshot. Today's behaviour, opt-in.
+    Error,
+    /// Keep the transfer, warn, and snapshot.
+    Ignore,
+    /// Keep the transfer and snapshot, with no log line.
+    Silent,
+    /// Re-run up to a small cap, then treat a last 24 like [`Ignore`](Self::Ignore).
+    #[default]
+    Retry,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Volume {
     pub source: String,
@@ -14,6 +29,9 @@ pub struct Volume {
     pub max_days: i64,
     #[serde(default)]
     pub excludes: Option<Vec<String>>,
+    /// Overrides the profile-level [`Config::vanished`] when set.
+    #[serde(default)]
+    pub vanished: Option<Vanished>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -25,6 +43,10 @@ pub struct Config {
     pub port: u16,
     #[serde(default)]
     pub sshkey: Option<String>,
+    /// Applied to every volume that does not set its own `vanished`.
+    /// Absent means [`Vanished::Retry`].
+    #[serde(default)]
+    pub vanished: Vanished,
     // BTreeMap keeps a stable, deterministic processing order across runs.
     pub volumes: BTreeMap<String, Volume>,
 }
