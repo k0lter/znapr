@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>znapr — volume failed</title></head>
+<body style="margin:0;background:#020617;color:#e2e8f0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<div style="max-width:820px;margin:0 auto;padding:36px 20px 72px;">
+<p style="margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#ef4444;">Compact</p>
+<p style="margin:0 0 12px;font-size:13px;color:#64748b;">home on mail.example.com failed. The reason is under that host. The other hosts are fine.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 40px;background:#0f172a;border:1px solid #1e293b;border-radius:12px;overflow:hidden;">
+  <tr><td style="padding:14px 16px;border-left:4px solid #ef4444;background:#0b1220;">
+    <div style="font-size:15px;font-weight:700;color:#f8fafc;">znapr backup report</div>
+    <div style="margin-top:6px;font-size:12px;color:#94a3b8;">backup.example.com &nbsp;&middot;&nbsp; 2026-11-21 03:12 &nbsp;&middot;&nbsp; <span style="color:#ef4444;font-weight:700;">ERRORS</span> &nbsp;&middot;&nbsp; 11 ok &nbsp;&middot;&nbsp; 1 failed &nbsp;&middot;&nbsp; 18m2s</div>
+  </td></tr>
+  <tr><td style="padding:4px 0 8px;"><table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td style="padding:8px 16px 2px;width:210px;"><div style="font-size:14px;font-weight:600;color:#f1f5f9;">mail.example.com</div><div style="font-size:11px;color:#64748b;">mail.yml</div></td>
+      <td style="padding:8px 8px 2px;width:56px;font-size:12px;color:#64748b;">2m14s</td>
+      <td style="padding:8px 16px 2px 8px;"><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">spool</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">imap</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#ef4444;background:#ef44441a;">home</span></td>
+    </tr>
+    <tr><td></td><td></td><td style="padding:0 16px 8px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#fca5a5;">home: rsync: connection refused</td></tr>
+    <tr>
+      <td style="padding:8px 16px;border-top:1px solid #1e293b;"><div style="font-size:14px;font-weight:600;color:#f1f5f9;">www.example.com</div><div style="font-size:11px;color:#64748b;">www.yml</div></td>
+      <td style="padding:8px;font-size:12px;color:#64748b;border-top:1px solid #1e293b;">45s</td>
+      <td style="padding:8px 16px 8px 8px;border-top:1px solid #1e293b;"><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">root</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">static</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">media</span></td>
+    </tr>
+    <tr>
+      <td style="padding:8px 16px;border-top:1px solid #1e293b;"><div style="font-size:14px;font-weight:600;color:#f1f5f9;">db.example.com</div><div style="font-size:11px;color:#64748b;">db.yml</div></td>
+      <td style="padding:8px;font-size:12px;color:#64748b;border-top:1px solid #1e293b;">6m1s</td>
+      <td style="padding:8px 16px 8px 8px;border-top:1px solid #1e293b;"><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">data</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">wal</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">config</span></td>
+    </tr>
+    <tr>
+      <td style="padding:8px 16px;border-top:1px solid #1e293b;"><div style="font-size:14px;font-weight:600;color:#f1f5f9;">logs.example.com</div><div style="font-size:11px;color:#64748b;">logs.yml</div></td>
+      <td style="padding:8px;font-size:12px;color:#64748b;border-top:1px solid #1e293b;">9m2s</td>
+      <td style="padding:8px 16px 8px 8px;border-top:1px solid #1e293b;"><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">app</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">syslog</span><span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">audit</span></td>
+    </tr>
+  </table></td></tr>
+</table>
+
+<p style="margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;">Extended</p>
+<p style="margin:0 0 12px;font-size:13px;color:#64748b;">Same run. home is FAIL, with its source and the rsync error under the volume.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;overflow:hidden;">
+  <tr><td style="padding:14px 16px;border-left:4px solid #ef4444;background:#0b1220;">
+    <div style="font-size:15px;font-weight:700;color:#f8fafc;">znapr backup report</div>
+    <div style="margin-top:6px;font-size:12px;color:#94a3b8;">backup.example.com &nbsp;&middot;&nbsp; 2026-11-21 03:12 &nbsp;&middot;&nbsp; <span style="color:#ef4444;font-weight:700;">ERRORS</span> &nbsp;&middot;&nbsp; 11 ok &nbsp;&middot;&nbsp; 1 failed &nbsp;&middot;&nbsp; 18m2s</div>
+  </td></tr>
+  <tr><td><table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+    <tr><td colspan="3" style="padding:14px 16px 4px;"><div style="font-size:15px;font-weight:600;color:#f1f5f9;">mail.example.com <span style="color:#64748b;font-weight:400;font-size:12px;">mail.yml &nbsp;&middot;&nbsp; 2m14s</span></div></td></tr>
+    <tr><td style="padding:6px 16px;width:72px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">spool<div style="color:#64748b;font-size:12px;">/var/mail</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">50s</td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">imap<div style="color:#64748b;font-size:12px;">/var/imap</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">40s</td></tr>
+    <tr><td style="padding:6px 16px 2px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#ef4444;background:#ef44441a;">FAIL</span></td><td style="padding:6px 16px 2px;color:#e2e8f0;font-size:14px;">home<div style="color:#64748b;font-size:12px;">/home</div></td><td style="padding:6px 16px 2px;color:#94a3b8;font-size:13px;text-align:right;">44s</td></tr>
+    <tr><td></td><td colspan="2" style="padding:0 16px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#fca5a5;">rsync: connection refused</td></tr>
+    <tr><td colspan="3" style="padding:14px 16px 4px;border-top:1px solid #1e293b;"><div style="font-size:15px;font-weight:600;color:#f1f5f9;">www.example.com <span style="color:#64748b;font-weight:400;font-size:12px;">www.yml &nbsp;&middot;&nbsp; 45s</span></div></td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">root<div style="color:#64748b;font-size:12px;">/var/www</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">20s</td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">static<div style="color:#64748b;font-size:12px;">/var/www/static</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">15s</td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">media<div style="color:#64748b;font-size:12px;">/var/www/media</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">10s</td></tr>
+    <tr><td colspan="3" style="padding:14px 16px 4px;border-top:1px solid #1e293b;"><div style="font-size:15px;font-weight:600;color:#f1f5f9;">db.example.com <span style="color:#64748b;font-weight:400;font-size:12px;">db.yml &nbsp;&middot;&nbsp; 6m1s</span></div></td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">data<div style="color:#64748b;font-size:12px;">/var/lib/postgresql</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">4m</td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">wal<div style="color:#64748b;font-size:12px;">/var/lib/postgresql/wal</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">1m30s</td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">config<div style="color:#64748b;font-size:12px;">/etc/postgresql</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">31s</td></tr>
+    <tr><td colspan="3" style="padding:14px 16px 4px;border-top:1px solid #1e293b;"><div style="font-size:15px;font-weight:600;color:#f1f5f9;">logs.example.com <span style="color:#64748b;font-weight:400;font-size:12px;">logs.yml &nbsp;&middot;&nbsp; 9m2s</span></div></td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">app<div style="color:#64748b;font-size:12px;">/var/log/app</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">3m</td></tr>
+    <tr><td style="padding:6px 16px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">syslog<div style="color:#64748b;font-size:12px;">/var/log</div></td><td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;">4m</td></tr>
+    <tr><td style="padding:6px 16px 10px;"><span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#22c55e;background:#22c55e1a;">OK</span></td><td style="padding:6px 16px 10px;color:#e2e8f0;font-size:14px;">audit<div style="color:#64748b;font-size:12px;">/var/log/audit</div></td><td style="padding:6px 16px 10px;color:#94a3b8;font-size:13px;text-align:right;">2m2s</td></tr>
+  </table></td></tr>
+</table>
+</div>
+</body>
+</html>

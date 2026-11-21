@@ -1,0 +1,49 @@
+Compact
+
+znapr backup report - backup.example.com
+Started : 2026-11-21 03:12:00
+Duration: 18m2s
+Status  : ERRORS  (11 ok, 1 failed)
+
+* mail.example.com  (mail.yml)  2m14s
+    spool imap home!
+    home: rsync: connection refused
+
+* www.example.com  (www.yml)  45s
+    root static media
+
+* db.example.com  (db.yml)  6m1s
+    data wal config
+
+* logs.example.com  (logs.yml)  9m2s
+    app syslog audit
+
+Volumes: name ok, name~ vanished files accepted, name! failed.
+
+--- extended ---
+
+znapr backup report - backup.example.com
+Started : 2026-11-21 03:12:00
+Duration: 18m2s
+Status  : ERRORS  (11 ok, 1 failed)
+
+* mail.example.com  (mail.yml)  2m14s
+    [  OK] spool                     50s   /var/mail
+    [  OK] imap                      40s   /var/imap
+    [FAIL] home                      44s   /home
+           -> rsync: connection refused
+
+* www.example.com  (www.yml)  45s
+    [  OK] root                      20s   /var/www
+    [  OK] static                    15s   /var/www/static
+    [  OK] media                     10s   /var/www/media
+
+* db.example.com  (db.yml)  6m1s
+    [  OK] data                       4m   /var/lib/postgresql
+    [  OK] wal                     1m30s   /var/lib/postgresql/wal
+    [  OK] config                    31s   /etc/postgresql
+
+* logs.example.com  (logs.yml)  9m2s
+    [  OK] app                        3m   /var/log/app
+    [  OK] syslog                     4m   /var/log
+    [  OK] audit                    2m2s   /var/log/audit

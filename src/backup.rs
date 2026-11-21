@@ -195,7 +195,14 @@ fn on_rsync_status(policy: Vanished, code: i32, attempt: u32) -> RsyncFate {
     }
 }
 
-/// Returns `Some(error)` on failure, `None` on success.
+enum SyncOutcome {
+    /// `vanished` is a 24 accepted with a warning. Silent acceptance is `false`.
+    Done {
+        vanished: bool,
+    },
+    Failed(String),
+}
+
 fn backup_data(
     ssh: &SshParams,
     source: &str,
@@ -204,7 +211,7 @@ fn backup_data(
     vanished: Vanished,
     label: &str,
     progress: &mut BackupProgress,
-) -> Option<String> {
+) -> SyncOutcome {
     let mut ssh_args = format!("-o StrictHostKeyChecking=accept-new -p {}", ssh.port);
     if let Some(key) = ssh.sshkey {
         ssh_args.push_str(&format!(" -i {}", key));
@@ -256,15 +263,16 @@ fn backup_data(
         };
 
         match on_rsync_status(vanished, code, attempt) {
-            RsyncFate::Ok => return None,
-            RsyncFate::Accept { warn: true } => {
-                warn!(
-                    "Files vanished during sync from [cfg]{}[/] to [cfg]{}[/] (rsync status [data]24[/]); keeping the transfer",
-                    src, dst
-                );
-                return None;
+            RsyncFate::Ok => return SyncOutcome::Done { vanished: false },
+            RsyncFate::Accept { warn } => {
+                if warn {
+                    warn!(
+                        "Files vanished during sync from [cfg]{}[/] to [cfg]{}[/] (rsync status [data]24[/]); keeping the transfer",
+                        src, dst
+                    );
+                }
+                return SyncOutcome::Done { vanished: warn };
             }
-            RsyncFate::Accept { warn: false } => return None,
             RsyncFate::Retry => {
                 info!(
                     "Files vanished during sync from [cfg]{}[/] to [cfg]{}[/]; retrying ([data]{}/{}[/])",
@@ -277,19 +285,19 @@ fn backup_data(
                         "Something went wrong while trying to sync data from [cfg]{}[/] to [cfg]{}[/]",
                         src, dst
                     );
-                    return Some(format!("rsync exited with status {code}"));
+                    return SyncOutcome::Failed(format!("rsync exited with status {code}"));
                 }
                 error!(
                     "[data]Something went wrong while trying to sync data from {} to {}[/]: [err]{}[/]",
                     src, dst, stderr
                 );
-                return Some(stderr.trim().to_string());
+                return SyncOutcome::Failed(stderr.trim().to_string());
             }
         }
     }
 
     // `on_rsync_status` accepts a last 24 instead of asking for another try.
-    None
+    SyncOutcome::Done { vanished: true }
 }
 
 /// Returns `Some(error)` on failure, `None` on success.
@@ -332,6 +340,7 @@ fn backup_vol(
         status: Status::Failed,
         error: None,
         duration: Duration::default(),
+        vanished: false,
     };
 
     let dest = match get_zfsvol_mountpoint(&zfsvol) {
@@ -349,7 +358,7 @@ fn backup_vol(
         }
     };
 
-    if let Some(err) = backup_data(
+    match backup_data(
         ssh,
         &settings.source,
         &dest,
@@ -358,10 +367,13 @@ fn backup_vol(
         name,
         progress,
     ) {
-        report.error = Some(err);
-        report.duration = start.elapsed();
+        SyncOutcome::Failed(err) => {
+            report.error = Some(err);
+            report.duration = start.elapsed();
 
-        return report;
+            return report;
+        }
+        SyncOutcome::Done { vanished } => report.vanished = vanished,
     }
 
     if let Some(err) = backup_snapshot(&zfsvol, settings.max_days) {
@@ -403,6 +415,7 @@ fn backup(path: &Path, cfg: Config, progress: &mut BackupProgress) -> BackupRepo
     BackupReport {
         config_file: path.display().to_string(),
         profile: Some(cfg.name),
+        host: Some(cfg.host),
         error: None,
         volumes,
         duration: start.elapsed(),
@@ -471,6 +484,7 @@ pub fn run(
     mail_report: Option<&str>,
     errors_only: bool,
     cleanup: bool,
+    extended_report: bool,
 ) -> Result<()> {
     let started = Local::now();
     let start_all = Instant::now();
@@ -497,6 +511,7 @@ pub fn run(
                     backups.push(BackupReport {
                         config_file: path.display().to_string(),
                         profile: None,
+                        host: None,
                         error: Some(crate::logger::render_plain(&format!("{e:#}"))),
                         volumes: Vec::new(),
                         duration: Duration::default(),
@@ -556,7 +571,7 @@ pub fn run(
     if let Some(to) = mail_report {
         if errors_only && !report.has_errors() {
             info!("No errors: skipping mail report ([cfg]--errors-only[/])");
-        } else if let Err(e) = crate::mailer::send(&report, to) {
+        } else if let Err(e) = crate::mailer::send(&report, to, extended_report) {
             error!("Failed to send mail report: {:#}", e);
         } else {
             info!("Sent backup report to [cfg]{}[/]", to);
@@ -618,6 +633,7 @@ mod tests {
         BackupReport {
             config_file: "x.yml".to_string(),
             profile: profile.map(str::to_string),
+            host: profile.map(|name| format!("{name}.example.com")),
             error: error.map(str::to_string),
             volumes: statuses
                 .iter()
@@ -627,6 +643,7 @@ mod tests {
                     status: *status,
                     error: None,
                     duration: Duration::default(),
+                    vanished: false,
                 })
                 .collect(),
             duration: Duration::default(),

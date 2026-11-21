@@ -108,7 +108,7 @@ Global flags, accepted before the subcommand:
 ### backup
 
 ```text
-znapr backup [-c DIR] [-M EMAIL] [-E] [-C] [PROFILE ...]
+znapr backup [-c DIR] [-M EMAIL] [-E] [-X] [-C] [PROFILE ...]
 ```
 
 Runs every profile, or only the named ones.
@@ -118,6 +118,7 @@ Runs every profile, or only the named ones.
 | `-c`, `--config-directory` | Profile directory. Default `/etc/znapr`. |
 | `-M`, `--mail-report EMAIL` | Send a report to this address through the local MTA. |
 | `-E`, `--errors-only` | Send that report only when a backup failed. Requires `-M`. |
+| `-X`, `--extended-report` | One line per volume, with its source and its own duration. Requires `-M`. The default report is one line per profile. |
 | `-C`, `--cleanup` | After each fully successful profile, destroy its expired snapshots. |
 
 ### list
@@ -180,9 +181,46 @@ A snapshot name `dataset@YYYY-MM-DD_HH.MM.SS--30d` expires 30 days after `YYYY-M
 ```sh
 znapr backup -M ops@example.com
 znapr backup -M ops@example.com -E
+znapr backup -M ops@example.com -X
 ```
 
 The message is `multipart/alternative` (plain text and HTML), sent with `sendmail -t -i`. The sender is `znapr@<hostname>`, from `/etc/hostname`. The subject states whether the run failed and how many volumes succeeded. `-E` skips the message when every volume succeeded. If `sendmail` cannot be started or exits non-zero, the error is logged and the backup command still exits 0.
+
+The default report is compact: one row per profile (one YAML file, one remote host), that profile's duration, then each volume. Green is success, including a vanished transfer accepted silently. Amber is a vanished file accepted with a warning. Red is a real failure, and the reason is on the next line. The bar on the left of the header is green when the run is OK and red when it has errors. A vanished volume still counts as ok, so `-E` does not send for that alone.
+
+`-X` puts one line per volume back, with the source path and that volume's own duration. An amber volume is marked `VAN`.
+
+The plain-text part has no color. A successful volume is `name`, a vanished volume accepted with a warning is `name~`, and a failure is `name!`. With `-X` those marks are `[  OK]`, `[ VAN]` and `[FAIL]`.
+
+### Samples
+
+Each picture is the same run twice, compact then extended. The link under it is the plain-text part. These are illustrations of the layout.
+
+#### All volumes succeeded
+
+![All volumes succeeded](docs/report/mail-ok.png)
+
+[Plain text](docs/report/mail-ok.txt)
+
+#### Vanished file accepted
+
+![Vanished file accepted](docs/report/mail-vanished.png)
+
+[Plain text](docs/report/mail-vanished.txt)
+
+#### A volume failed
+
+![A volume failed](docs/report/mail-failed.png)
+
+[Plain text](docs/report/mail-failed.txt)
+
+#### Mixed run
+
+A vanished volume, a real failure, and a YAML file that did not load.
+
+![Mixed run](docs/report/mail-full.png)
+
+[Plain text](docs/report/mail-full.txt)
 
 ## License
 

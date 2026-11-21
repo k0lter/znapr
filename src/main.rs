@@ -67,6 +67,10 @@ enum Commands {
         /// Destroy expired snapshots of each fully successful profile (same as `cleanup`)
         #[arg(short = 'C', long = "cleanup")]
         cleanup: bool,
+
+        /// One line per volume, with its source and duration. The default report is one line per profile.
+        #[arg(short = 'X', long = "extended-report", requires = "mail_report")]
+        extended_report: bool,
     },
     /// List configured backups with their snapshot count and used space
     List {
@@ -138,12 +142,14 @@ fn run() -> anyhow::Result<()> {
             mail_report,
             errors_only,
             cleanup,
+            extended_report,
         } => backup::run(
             &config_directory,
             &targets,
             mail_report.as_deref(),
             errors_only,
             cleanup,
+            extended_report,
         )?,
         Commands::List {
             config_directory,

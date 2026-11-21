@@ -62,10 +62,10 @@ fn message_stamp() -> (u32, u128) {
     (std::process::id(), nanos)
 }
 
-fn build_message(from: &str, to: &str, report: &RunReport) -> String {
+fn build_message(from: &str, to: &str, report: &RunReport, extended: bool) -> String {
     let subject = report::subject(report);
-    let text = report::render_text(report);
-    let html = report::render_html(report);
+    let text = report::render_text(report, extended);
+    let html = report::render_html(report, extended);
     let (pid, nanos) = message_stamp();
     let boundary = format!("znapr_{pid}_{nanos}");
 
@@ -103,9 +103,9 @@ fn build_message(from: &str, to: &str, report: &RunReport) -> String {
 
 /// Send the report as a multipart/alternative (text + HTML) e-mail via the
 /// local MTA's sendmail interface.
-pub fn send(report: &RunReport, to: &str) -> Result<()> {
+pub fn send(report: &RunReport, to: &str, extended: bool) -> Result<()> {
     let from = format!("znapr@{}", report.hostname);
-    let message = build_message(&from, to, report);
+    let message = build_message(&from, to, report, extended);
 
     let mut child = Command::new(sendmail_path())
         .args(["-t", "-i"])
@@ -151,17 +151,19 @@ mod tests {
                 profile: Some("web".to_string()),
                 error: None,
                 duration: Duration::from_secs(1),
+                host: Some("web.example.com".to_string()),
                 volumes: vec![VolumeReport {
                     name: "root".to_string(),
                     source: "/var/www".to_string(),
                     status: Status::Ok,
                     error: None,
                     duration: Duration::from_secs(1),
+                    vanished: false,
                 }],
             }],
         };
 
-        let msg = build_message("znapr@host", "ops@example.com", &report);
+        let msg = build_message("znapr@host", "ops@example.com", &report, false);
         assert!(msg.contains("To: ops@example.com\r\n"));
         assert!(msg.contains("Content-Type: multipart/alternative"));
         assert!(msg.contains("Content-Type: text/plain; charset=UTF-8"));
