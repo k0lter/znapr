@@ -63,6 +63,10 @@ enum Commands {
         /// Only send the report if a backup failed (implies --mail-report)
         #[arg(short = 'E', long = "errors-only", requires = "mail_report")]
         errors_only: bool,
+
+        /// Destroy expired snapshots of each fully successful profile (same as `cleanup`)
+        #[arg(short = 'C', long = "cleanup")]
+        cleanup: bool,
     },
     /// List configured backups with their snapshot count and used space
     List {
@@ -133,7 +137,14 @@ fn run() -> anyhow::Result<()> {
             targets,
             mail_report,
             errors_only,
-        } => backup::run(&config_directory, &targets, mail_report.as_deref(), errors_only)?,
+            cleanup,
+        } => backup::run(
+            &config_directory,
+            &targets,
+            mail_report.as_deref(),
+            errors_only,
+            cleanup,
+        )?,
         Commands::List {
             config_directory,
             target,

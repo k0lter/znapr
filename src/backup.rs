@@ -157,7 +157,10 @@ fn run_rsync(args: &[&str], parse: bool, on_percent: &mut dyn FnMut(u8)) -> (i32
 
     let code = child.wait().map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
     let stderr = err_handle.join().unwrap_or_default();
-    trace!("Command result: rc=[result]{}[/] stderr=[data]{}[/]", code, stderr);
+    trace!(
+        "Command result: rc=[result]{}[/] stderr=[data]{}[/]",
+        code, stderr
+    );
 
     (code, stderr)
 }
@@ -403,11 +406,18 @@ fn format_duration(d: Duration) -> String {
     out
 }
 
+/// A profile is fully successful when the config loaded and every volume
+/// succeeded. No volumes is success: there was nothing to fail.
+fn profile_succeeded(report: &BackupReport) -> bool {
+    report.error.is_none() && report.volumes.iter().all(|v| v.status == Status::Ok)
+}
+
 pub fn run(
     config_directory: &Path,
     targets: &[String],
     mail_report: Option<&str>,
     errors_only: bool,
+    cleanup: bool,
 ) -> Result<()> {
     let started = Local::now();
     let start_all = Instant::now();
@@ -446,8 +456,29 @@ pub fn run(
     let mut progress = BackupProgress::new(jobs.len());
     for (path, cfg) in jobs {
         let start = Instant::now();
-        progress.set_outer(&path.file_name().unwrap_or(path.as_os_str()).to_string_lossy());
-        backups.push(backup(&path, cfg, &mut progress));
+        progress.set_outer(
+            &path
+                .file_name()
+                .unwrap_or(path.as_os_str())
+                .to_string_lossy(),
+        );
+        let report = backup(&path, cfg, &mut progress);
+        if cleanup {
+            match (&report.profile, profile_succeeded(&report)) {
+                (Some(name), true) => {
+                    // cleanup draws its own bar; two live displays fight for the terminal.
+                    progress.pause();
+                    let result = crate::cleanup::run(config_directory, Some(name), false, false);
+                    progress.resume();
+                    result?;
+                }
+                (Some(name), false) => {
+                    info!("Skipping cleanup for [cfg]{}[/]: backup failed", name);
+                }
+                (None, _) => {}
+            }
+        }
+        backups.push(report);
         progress.advance_outer();
         info!(
             "Processing [cfg]{}[/] took [result]{}[/]",
@@ -496,6 +527,49 @@ mod tests {
         assert_eq!(parse_percent(b"100%"), Some(100));
         assert_eq!(parse_percent(b"200%"), Some(100)); // clamped
         assert_eq!(parse_percent(b"no percent here"), None);
+    }
+
+    fn sample_report(
+        profile: Option<&str>,
+        error: Option<&str>,
+        statuses: &[Status],
+    ) -> BackupReport {
+        BackupReport {
+            config_file: "x.yml".to_string(),
+            profile: profile.map(str::to_string),
+            error: error.map(str::to_string),
+            volumes: statuses
+                .iter()
+                .map(|status| VolumeReport {
+                    name: "vol".to_string(),
+                    source: "/src".to_string(),
+                    status: *status,
+                    error: None,
+                    duration: Duration::default(),
+                })
+                .collect(),
+            duration: Duration::default(),
+        }
+    }
+
+    #[test]
+    fn profile_succeeded_requires_every_volume_and_no_config_error() {
+        assert!(profile_succeeded(&sample_report(
+            Some("ok"),
+            None,
+            &[Status::Ok, Status::Ok]
+        )));
+        assert!(profile_succeeded(&sample_report(Some("empty"), None, &[])));
+        assert!(!profile_succeeded(&sample_report(
+            Some("bad"),
+            None,
+            &[Status::Ok, Status::Failed]
+        )));
+        assert!(!profile_succeeded(&sample_report(
+            Some("cfg"),
+            Some("yaml"),
+            &[Status::Ok]
+        )));
     }
 
     #[test]

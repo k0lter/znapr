@@ -125,6 +125,25 @@ impl BackupProgress {
             p.stop();
         }
     }
+
+    /// Hide the bar so another live display (cleanup) can use the terminal.
+    ///
+    /// gilt's `Progress` has no pause. `stop`/`start` on a transient bar erases
+    /// it and redraws it later; completed counts live on the tasks, so they
+    /// survive. Upgrade path: call `Live::pause` if `Progress` ever exposes it.
+    pub fn pause(&mut self) {
+        if let Some((p, _)) = &mut self.inner {
+            p.stop();
+        }
+    }
+
+    /// Show the bar again after [`pause`](Self::pause).
+    pub fn resume(&mut self) {
+        if let Some((p, _)) = &mut self.inner {
+            p.start();
+            p.refresh();
+        }
+    }
 }
 
 impl Drop for BackupProgress {
