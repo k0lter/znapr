@@ -92,8 +92,6 @@ rsync -e "ssh -o StrictHostKeyChecking=accept-new -p PORT [-i KEY]" \
 
 A failed volume does not stop the other volumes of the same profile. With `--cleanup` / `-C`, expired snapshots of a profile are destroyed immediately after that profile, and only when every one of its volumes succeeded. The mail report, if requested, is sent after every profile has finished. A mail failure is logged and does not fail the run.
 
-On a terminal, at the default log level, a progress bar tracks profiles and the current rsync transfer.
-
 ## Commands
 
 Global flags, accepted before the subcommand:
@@ -104,6 +102,16 @@ Global flags, accepted before the subcommand:
 | `-vv` | Debug logs. On a terminal, rsync prints its own progress instead of the bar. |
 | `-vvv` | Trace logs, including the commands that are run. |
 | `-q`, `--quiet` | Errors only. |
+
+### Progress
+
+A progress bar is drawn only when stdout is a terminal and the log level is the default (warnings). It stays off under cron, with `-q`, and from `-v` upward, so it never shares the screen with log lines. It erases itself when the command finishes.
+
+`backup` draws two rows: the profile file in progress, and the current rsync transfer as a percentage. `list` draws one row, and only for profiles missing from the cache. `cleanup` and `recache` draw one row, named with the profile. With `-C`, the backup bar steps aside while cleanup draws its own.
+
+On a terminal, `-vv` drops the bar and lets rsync print its own progress.
+
+![znapr backup progress](docs/progress.png)
 
 ### backup
 
