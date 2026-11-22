@@ -135,8 +135,8 @@ pub(crate) fn sort_rows(rows: &mut [Row], by: SortBy, reverse: bool) {
         SortBy::Name => rows.sort_by(|a, b| a.name.cmp(&b.name)),
         // Largest / most recent first (the common intent). Rows with no date
         // (never fully backed up) sort last.
-        SortBy::Size => rows.sort_by(|a, b| b.used_bytes.cmp(&a.used_bytes)),
-        SortBy::Last => rows.sort_by(|a, b| b.last_ok_date.cmp(&a.last_ok_date)),
+        SortBy::Size => rows.sort_by_key(|row| std::cmp::Reverse(row.used_bytes)),
+        SortBy::Last => rows.sort_by_key(|row| std::cmp::Reverse(row.last_ok_date)),
     }
 
     if reverse {
@@ -240,15 +240,19 @@ pub(crate) fn print_table(name_header: &str, rows: &[Row], show_headers: bool) {
     }
 }
 
+pub struct Output {
+    pub total: bool,
+    pub no_headers: bool,
+    pub json: bool,
+}
+
 pub fn run(
     config_directory: &Path,
     target: Option<&str>,
     sort_size: bool,
     sort_last: bool,
     reverse: bool,
-    total: bool,
-    no_headers: bool,
-    json: bool,
+    output: Output,
 ) -> Result<()> {
     let now = Local::now().naive_local();
     let sort_by = if sort_size {
@@ -312,13 +316,13 @@ pub fn run(
     bar.finish();
 
     sort_rows(&mut rows, sort_by, reverse);
-    if total {
+    if output.total {
         append_total(&mut rows);
     }
-    if json {
+    if output.json {
         println!("{}", rows_json(&rows));
     } else {
-        print_table("NAME", &rows, !no_headers);
+        print_table("NAME", &rows, !output.no_headers);
     }
 
     Ok(())

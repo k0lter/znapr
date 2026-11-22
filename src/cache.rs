@@ -46,7 +46,16 @@ fn cache_path(name: &str) -> PathBuf {
 fn snapshots_with_size(rootvol: &str) -> Option<Vec<SnapshotInfo>> {
     let r = call(
         &[
-            "zfs", "list", "-H", "-p", "-t", "snapshot", "-r", "-o", "name,used", rootvol,
+            "zfs",
+            "list",
+            "-H",
+            "-p",
+            "-t",
+            "snapshot",
+            "-r",
+            "-o",
+            "name,used",
+            rootvol,
         ],
         true,
     );

@@ -170,6 +170,17 @@ pub fn progress_enabled() -> bool {
         && !tracing::enabled!(tracing::Level::INFO)
 }
 
+/// Alias for `bail!` — messages may contain semantic markup tags, rendered at display time.
+#[macro_export]
+macro_rules! error_msg {
+    ($msg:expr) => {
+        anyhow::bail!($msg)
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        anyhow::bail!($fmt, $($arg)*)
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::render_markup;
@@ -189,15 +200,4 @@ mod tests {
             );
         }
     }
-}
-
-/// Alias for `bail!` — messages may contain semantic markup tags, rendered at display time.
-#[macro_export]
-macro_rules! error_msg {
-    ($msg:expr) => {
-        anyhow::bail!($msg)
-    };
-    ($fmt:expr, $($arg:tt)*) => {
-        anyhow::bail!($fmt, $($arg)*)
-    };
 }

@@ -202,9 +202,11 @@ fn run() -> anyhow::Result<()> {
             sort_size,
             sort_last,
             reverse,
-            total,
-            no_headers,
-            json,
+            list::Output {
+                total,
+                no_headers,
+                json,
+            },
         )?,
         Commands::Orphaned {
             config_directory,
