@@ -195,6 +195,23 @@ fn on_rsync_status(policy: Vanished, code: i32, attempt: u32) -> RsyncFate {
     }
 }
 
+/// `ssh` command string for `rsync -e`. User args come first: OpenSSH keeps
+/// the first value of each option, so they can override StrictHostKeyChecking.
+fn ssh_rsh(ssh: &SshParams) -> String {
+    let mut cmd = String::from("ssh");
+    if let Some(extra) = ssh.rsync_ssh_args {
+        cmd.push(' ');
+        cmd.push_str(extra);
+    }
+    cmd.push_str(" -o StrictHostKeyChecking=accept-new -p ");
+    cmd.push_str(&ssh.port.to_string());
+    if let Some(key) = ssh.sshkey {
+        cmd.push_str(" -i ");
+        cmd.push_str(key);
+    }
+    cmd
+}
+
 enum SyncOutcome {
     /// `vanished` is a 24 accepted with a warning. Silent acceptance is `false`.
     Done {
@@ -212,12 +229,7 @@ fn backup_data(
     label: &str,
     progress: &mut BackupProgress,
 ) -> SyncOutcome {
-    let mut ssh_args = format!("-o StrictHostKeyChecking=accept-new -p {}", ssh.port);
-    if let Some(key) = ssh.sshkey {
-        ssh_args.push_str(&format!(" -i {}", key));
-    }
-
-    let ssh_opt = format!("ssh {}", ssh_args);
+    let ssh_opt = ssh_rsh(ssh);
     let mut args: Vec<String> = vec![
         "rsync".into(),
         "-e".into(),
@@ -579,6 +591,28 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ssh_rsh_puts_optional_args_before_builtin_options() {
+        let with_args = ssh_rsh(&SshParams {
+            host: "h",
+            port: 2222,
+            sshkey: Some("/key"),
+            rsync_ssh_args: Some("-o BindInterface=wg0"),
+        });
+        assert_eq!(
+            with_args,
+            "ssh -o BindInterface=wg0 -o StrictHostKeyChecking=accept-new -p 2222 -i /key"
+        );
+
+        let plain = ssh_rsh(&SshParams {
+            host: "h",
+            port: 22,
+            sshkey: None,
+            rsync_ssh_args: None,
+        });
+        assert_eq!(plain, "ssh -o StrictHostKeyChecking=accept-new -p 22");
+    }
 
     #[test]
     fn on_rsync_status_treats_only_vanished_files_as_policy() {

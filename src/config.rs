@@ -43,6 +43,11 @@ pub struct Config {
     pub port: u16,
     #[serde(default)]
     pub sshkey: Option<String>,
+    /// Extra arguments inserted at the start of the `ssh` command passed to `rsync -e`.
+    /// OpenSSH keeps the first value of each option, so these can override the built-in ones.
+    /// Empty or whitespace is treated as absent.
+    #[serde(default)]
+    pub rsync_ssh_args: Option<String>,
     /// Applied to every volume that does not set its own `vanished`.
     /// Absent means [`Vanished::Retry`].
     #[serde(default)]
@@ -60,6 +65,7 @@ pub struct SshParams<'a> {
     pub host: &'a str,
     pub port: u16,
     pub sshkey: Option<&'a str>,
+    pub rsync_ssh_args: Option<&'a str>,
 }
 
 impl Config {
@@ -98,6 +104,36 @@ impl Config {
             host: &self.host,
             port: self.port,
             sshkey: self.sshkey.as_deref(),
+            rsync_ssh_args: self
+                .rsync_ssh_args
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(args: Option<&str>) -> Config {
+        Config {
+            name: "n".into(),
+            zfsroot: "tank".into(),
+            host: "h".into(),
+            port: 22,
+            sshkey: None,
+            rsync_ssh_args: args.map(str::to_string),
+            vanished: Vanished::Retry,
+            volumes: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn ssh_params_drops_blank_rsync_ssh_args() {
+        assert_eq!(cfg(None).ssh_params().rsync_ssh_args, None);
+        assert_eq!(cfg(Some("  ")).ssh_params().rsync_ssh_args, None);
+        assert_eq!(cfg(Some("  -4  ")).ssh_params().rsync_ssh_args, Some("-4"));
     }
 }

@@ -49,6 +49,7 @@ volumes:
 | `host` | profile | Remote host to rsync from. |
 | `port` | profile | SSH port. Defaults to 22. |
 | `sshkey` | profile | Optional private key passed to `ssh -i`. A missing file is a warning, not a failure. |
+| `rsync_ssh_args` | profile | Optional extra arguments inserted at the start of the `ssh` command. Empty means none. OpenSSH keeps the first value of each option, so these can override `StrictHostKeyChecking`. |
 | `vanished` | profile | Default policy for rsync exit 24. See below. Defaults to `retry`. |
 | `source` | volume | Absolute path on the remote host. |
 | `max-days` | volume | How many days the snapshot is kept. |
@@ -89,7 +90,7 @@ volumes:
 2. Runs rsync:
 
 ```text
-rsync -e "ssh -o StrictHostKeyChecking=accept-new -p PORT [-i KEY]" \
+rsync -e "ssh [RSYNC_SSH_ARGS] -o StrictHostKeyChecking=accept-new -p PORT [-i KEY]" \
     --delete --archive \
     [--exclude PATTERN ...] \
     HOST:SOURCE/ MOUNTPOINT/
