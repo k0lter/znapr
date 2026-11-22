@@ -126,8 +126,9 @@ pub fn run(
     // Freed space is the sum of each snapshot's `used`; blocks shared between
     // snapshots make this an estimate. Upgrade path: `zfs destroy -nv` reports
     // exact reclaim for a set.
-    // The caller prints this. `backup -C` must wait until its bar has stopped:
-    // a line written while the bar will redraw is overwritten by cursor moves.
+    // The caller prints this. `backup -C` skips it while its progress bar is
+    // shown. When it does print, the bar must already be stopped: a line
+    // written while the bar will redraw is overwritten by cursor moves.
     Ok(format!(
         "[result]total {}[/] [data]{}[/] across [result]{}[/] snapshots",
         verb,

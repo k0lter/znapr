@@ -564,8 +564,12 @@ pub fn run(
         );
     }
     progress.finish();
-    for summary in &cleanup_summaries {
-        crate::cleanup::print_summary(summary);
+    // The bar is the whole display in this mode. A freed-space total after it
+    // looks like an extra result, including when nothing was destroyed.
+    if !crate::logger::progress_enabled() {
+        for summary in &cleanup_summaries {
+            crate::cleanup::print_summary(summary);
+        }
     }
 
     info!(
