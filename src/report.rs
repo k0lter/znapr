@@ -102,10 +102,16 @@ fn config_label(path: &str) -> &str {
         .unwrap_or(path)
 }
 
-/// A row is one remote host. The filename stays beside it; a file that did
-/// not load has no host, so the filename is the row.
+/// A row is one remote host. A file that did not load has no host, so the
+/// filename is the row.
 fn profile_title<'a>(b: &'a BackupReport, file: &'a str) -> &'a str {
     b.host.as_deref().or(b.profile.as_deref()).unwrap_or(file)
+}
+
+/// Name shown beside the host. A file that did not load has no profile name,
+/// so the filename stays.
+fn profile_label<'a>(b: &'a BackupReport, file: &'a str) -> &'a str {
+    b.profile.as_deref().unwrap_or(file)
 }
 
 fn unloaded(b: &BackupReport) -> bool {
@@ -164,8 +170,9 @@ fn push_profile_heading(out: &mut String, b: &BackupReport) {
         out.push_str(&format!("* {file}\n"));
         return;
     }
+    let label = profile_label(b, file);
     out.push_str(&format!(
-        "* {}  ({file})  {}\n",
+        "* {}  ({label})  {}\n",
         profile_title(b, file),
         fmt_duration(b.duration)
     ));
@@ -297,7 +304,7 @@ fn compact_rows(report: &RunReport) -> String {
         let (subtitle, dur) = if unloaded(b) {
             ("profile did not load".to_string(), String::new())
         } else {
-            (file.to_string(), fmt_duration(b.duration))
+            (profile_label(b, file).to_string(), fmt_duration(b.duration))
         };
         let pills: String = b.volumes.iter().map(pill).collect();
         rows.push_str(&format!(
@@ -343,7 +350,11 @@ fn extended_rows(report: &RunReport) -> String {
         let meta = if unloaded(b) {
             "profile did not load".to_string()
         } else {
-            format!("{file} &nbsp;&middot;&nbsp; {}", fmt_duration(b.duration))
+            format!(
+                "{} &nbsp;&middot;&nbsp; {}",
+                profile_label(b, file),
+                fmt_duration(b.duration)
+            )
         };
         rows.push_str(&format!(
             r#"<tr><td colspan="3" style="padding:14px 16px 4px;{border}font-weight:600;font-size:15px;color:#f1f5f9;">{title} <span style="color:#64748b;font-weight:400;font-size:12px;">{meta}</span></td></tr>"#,
@@ -476,7 +487,7 @@ mod tests {
         assert_eq!(accepted.counts(), (2, 0));
 
         let text = render_text(&vanished, false);
-        assert!(text.contains("* mail.example.com  (mail.yml)  2m14s\n"));
+        assert!(text.contains("* mail.example.com  (mail)  2m14s\n"));
         assert!(text.contains("    spool archive~ home!\n"));
         assert!(text.contains("    home: rsync: connection refused\n"));
         assert!(text.contains("name~ vanished files accepted"));

@@ -524,12 +524,7 @@ pub fn run(
     let mut progress = BackupProgress::new(jobs.len());
     for (path, cfg) in jobs {
         let start = Instant::now();
-        progress.set_outer(
-            &path
-                .file_name()
-                .unwrap_or(path.as_os_str())
-                .to_string_lossy(),
-        );
+        progress.set_outer(&cfg.name);
         let report = backup(&path, cfg, &mut progress);
         if cleanup {
             match (&report.profile, profile_succeeded(&report)) {

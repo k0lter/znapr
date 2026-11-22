@@ -5,14 +5,14 @@ Started : 2026-11-21 03:12:00
 Duration: 9m
 Status  : ERRORS  (9 ok, 1 failed)
 
-* mail.example.com  (mail.yml)  2m14s
+* mail.example.com  (mail)  2m14s
     spool imap archive~ home!
     home: rsync: connection refused
 
-* www.example.com  (www.yml)  45s
+* www.example.com  (www)  45s
     root static media
 
-* db.example.com  (db.yml)  6m1s
+* db.example.com  (db)  6m1s
     data wal config
 
 * broken.yml
@@ -27,19 +27,19 @@ Started : 2026-11-21 03:12:00
 Duration: 9m
 Status  : ERRORS  (9 ok, 1 failed)
 
-* mail.example.com  (mail.yml)  2m14s
+* mail.example.com  (mail)  2m14s
     [  OK] spool                     40s   /var/mail
     [  OK] imap                      30s   /var/imap
     [ VAN] archive                   40s   /srv/archive
     [FAIL] home                      24s   /home
            -> rsync: connection refused
 
-* www.example.com  (www.yml)  45s
+* www.example.com  (www)  45s
     [  OK] root                      20s   /var/www
     [  OK] static                    15s   /var/www/static
     [  OK] media                     10s   /var/www/media
 
-* db.example.com  (db.yml)  6m1s
+* db.example.com  (db)  6m1s
     [  OK] data                       4m   /var/lib/postgresql
     [  OK] wal                     1m30s   /var/lib/postgresql/wal
     [  OK] config                    31s   /etc/postgresql

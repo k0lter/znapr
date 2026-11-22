@@ -107,7 +107,7 @@ Global flags, accepted before the subcommand:
 
 A progress bar is drawn only when stdout is a terminal and the log level is the default (warnings). It stays off under cron, with `-q`, and from `-v` upward, so it never shares the screen with log lines. It erases itself when the command finishes.
 
-`backup` draws two rows: the profile file in progress, and the current rsync transfer as a percentage. `list` draws one row, and only for profiles missing from the cache. `cleanup` and `recache` draw one row, named with the profile. With `-C`, the backup bar steps aside while cleanup draws its own.
+`backup` draws two rows: the profile `name` in progress, and the current rsync transfer as a percentage. `list` draws one row, and only for profiles missing from the cache. `cleanup` and `recache` draw one row, named with the profile. With `-C`, the backup bar steps aside while cleanup draws its own.
 
 On a terminal, `-vv` drops the bar and lets rsync print its own progress.
 
@@ -194,7 +194,7 @@ znapr backup -M ops@example.com -X
 
 The message is `multipart/alternative` (plain text and HTML), sent with `sendmail -t -i`. The sender is `znapr@<hostname>`, from `/etc/hostname`. The subject states whether the run failed and how many volumes succeeded. `-E` skips the message when every volume succeeded. If `sendmail` cannot be started or exits non-zero, the error is logged and the backup command still exits 0.
 
-The default report is compact: one row per profile (one YAML file, one remote host), that profile's duration, then each volume. Green is success, including a vanished transfer accepted silently. Amber is a vanished file accepted with a warning. Red is a real failure, and the reason is on the next line. The bar on the left of the header is green when the run is OK and red when it has errors. A vanished volume still counts as ok, so `-E` does not send for that alone.
+The default report is compact: one row per profile (one YAML file, one remote host). The row shows the host and the profile `name`, then that profile's duration and each volume. A file that did not load has no name, so the row shows its filename. Green is success, including a vanished transfer accepted silently. Amber is a vanished file accepted with a warning. Red is a real failure, and the reason is on the next line. The bar on the left of the header is green when the run is OK and red when it has errors. A vanished volume still counts as ok, so `-E` does not send for that alone.
 
 `-X` puts one line per volume back, with the source path and that volume's own duration. An amber volume is marked `VAN`.
 
