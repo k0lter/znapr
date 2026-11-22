@@ -159,6 +159,9 @@ struct MailView {
     ok: usize,
     failed: usize,
     accent: &'static str,
+    /// Opaque blend of `accent` at ~12% over the card background `#0f172a`.
+    /// An 8-digit hex (`#rrggbbaa`) makes Thunderbird drop the whole style.
+    accent_bg: &'static str,
     extended: bool,
     backups: Vec<BackupView>,
 }
@@ -179,6 +182,7 @@ fn mail_view(report: &RunReport, extended: bool) -> MailView {
         failed,
         // Self-contained palette: the same colors in light and dark clients.
         accent: if error { "#ef4444" } else { "#22c55e" },
+        accent_bg: if error { "#2b1d2e" } else { "#122d31" },
         extended,
         backups: report.backups.iter().map(backup_view).collect(),
     }
@@ -344,7 +348,10 @@ mod tests {
         assert!(text.contains("    spool archive~ home!\n"));
         assert!(text.contains("    home: rsync: connection refused\n"));
         assert!(text.contains("name~ vanished files accepted"));
-        assert!(render_html(&vanished, false).contains("#f59e0b"));
+        let html = render_html(&vanished, false);
+        assert!(html.contains("#f59e0b"));
+        assert!(html.contains("background-color:#272527"));
+        assert!(!html.contains("#f59e0b1a"));
 
         let extended = render_text(&vanished, true);
         assert!(extended.contains("[ VAN]"));
