@@ -109,6 +109,10 @@ enum Commands {
         /// Do not print the column header line
         #[arg(short = 'H', long = "no-headers")]
         no_headers: bool,
+
+        /// Print the rows as a JSON array
+        #[arg(short = 'J', long = "json")]
+        json: bool,
     },
     /// List znapr snapshots that belong to no configured volume
     Orphaned {
@@ -127,6 +131,10 @@ enum Commands {
         /// Do not print the column header line
         #[arg(short = 'H', long = "no-headers")]
         no_headers: bool,
+
+        /// Print the rows as a JSON array
+        #[arg(short = 'J', long = "json")]
+        json: bool,
     },
     /// Rebuild the per-backup cache used by `list`
     Recache {
@@ -187,6 +195,7 @@ fn run() -> anyhow::Result<()> {
             reverse,
             total,
             no_headers,
+            json,
         } => list::run(
             &config_directory,
             target.as_deref(),
@@ -195,13 +204,15 @@ fn run() -> anyhow::Result<()> {
             reverse,
             total,
             no_headers,
+            json,
         )?,
         Commands::Orphaned {
             config_directory,
             targets,
             total,
             no_headers,
-        } => orphaned::run(&config_directory, &targets, total, no_headers)?,
+            json,
+        } => orphaned::run(&config_directory, &targets, total, no_headers, json)?,
         Commands::Recache {
             config_directory,
             target,

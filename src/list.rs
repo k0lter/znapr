@@ -152,6 +152,45 @@ fn pad_right(s: &str, w: usize) -> String {
     format!("{:>w$}", s)
 }
 
+/// Indented JSON array of the table rows. A `-` cell is `null`.
+pub(crate) fn rows_json(rows: &[Row]) -> String {
+    #[derive(serde::Serialize)]
+    struct JsonRow<'a> {
+        name: &'a str,
+        snapshots: Option<usize>,
+        expired: Option<usize>,
+        used_bytes: Option<u64>,
+        pool_percent: Option<f64>,
+        last_ok: Option<&'a str>,
+    }
+
+    let items: Vec<JsonRow> = rows
+        .iter()
+        .map(|row| JsonRow {
+            name: &row.name,
+            snapshots: count_cell(&row.snapshots, row.snapshot_count),
+            expired: count_cell(&row.expired, row.expired_count),
+            used_bytes: if row.used == "-" {
+                None
+            } else {
+                Some(row.used_bytes)
+            },
+            pool_percent: row.pool_pct.strip_suffix('%').and_then(|n| n.parse().ok()),
+            last_ok: if row.last_ok == "-" {
+                None
+            } else {
+                Some(row.last_ok.as_str())
+            },
+        })
+        .collect();
+
+    serde_json::to_string_pretty(&items).expect("row json")
+}
+
+fn count_cell(display: &str, count: usize) -> Option<usize> {
+    if display == "-" { None } else { Some(count) }
+}
+
 pub(crate) fn print_table(name_header: &str, rows: &[Row], show_headers: bool) {
     let headers = [
         name_header,
@@ -209,6 +248,7 @@ pub fn run(
     reverse: bool,
     total: bool,
     no_headers: bool,
+    json: bool,
 ) -> Result<()> {
     let now = Local::now().naive_local();
     let sort_by = if sort_size {
@@ -275,7 +315,11 @@ pub fn run(
     if total {
         append_total(&mut rows);
     }
-    print_table("NAME", &rows, !no_headers);
+    if json {
+        println!("{}", rows_json(&rows));
+    } else {
+        print_table("NAME", &rows, !no_headers);
+    }
 
     Ok(())
 }
@@ -333,5 +377,41 @@ mod tests {
         ];
         append_total(&mut missing);
         assert_eq!(missing.last().unwrap().pool_pct, "-");
+    }
+
+    #[test]
+    fn rows_json_uses_null_for_missing_cells() {
+        let mut present = row("mail", 2, 1, 10, "tank", Some(100));
+        present.pool_pct = "1.5%".to_string();
+        present.last_ok = "2026-11-22".to_string();
+        let missing = Row {
+            name: "gone".to_string(),
+            snapshots: "-".to_string(),
+            expired: "-".to_string(),
+            used: "-".to_string(),
+            pool_pct: "-".to_string(),
+            last_ok: "-".to_string(),
+            used_bytes: 0,
+            last_ok_date: None,
+            has_expired: false,
+            snapshot_count: 0,
+            expired_count: 0,
+            pool: "tank".to_string(),
+            pool_bytes: Some(100),
+        };
+
+        let value: serde_json::Value =
+            serde_json::from_str(&rows_json(&[present, missing])).unwrap();
+        assert_eq!(value[0]["name"], "mail");
+        assert_eq!(value[0]["snapshots"], 2);
+        assert_eq!(value[0]["expired"], 1);
+        assert_eq!(value[0]["used_bytes"], 10);
+        assert_eq!(value[0]["pool_percent"], 1.5);
+        assert_eq!(value[0]["last_ok"], "2026-11-22");
+        assert!(value[1]["snapshots"].is_null());
+        assert!(value[1]["expired"].is_null());
+        assert!(value[1]["used_bytes"].is_null());
+        assert!(value[1]["pool_percent"].is_null());
+        assert!(value[1]["last_ok"].is_null());
     }
 }
