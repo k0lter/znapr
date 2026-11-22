@@ -188,7 +188,10 @@ fn run() -> anyhow::Result<()> {
             target,
             dry_run,
             no_cache,
-        } => cleanup::run(&config_directory, target.as_deref(), dry_run, no_cache)?,
+        } => {
+            let summary = cleanup::run(&config_directory, target.as_deref(), dry_run, no_cache)?;
+            cleanup::print_summary(&summary);
+        }
     }
 
     Ok(())

@@ -13,12 +13,16 @@ fn pln(markup: &str) {
     println!("{}", render_markup(markup));
 }
 
+pub fn print_summary(line: &str) {
+    pln(line);
+}
+
 pub fn run(
     config_directory: &Path,
     target: Option<&str>,
     dry_run: bool,
     no_cache: bool,
-) -> Result<()> {
+) -> Result<String> {
     let now = Local::now().naive_local();
     let verb = if dry_run { "would free" } else { "freed" };
     let mut total_freed: u64 = 0;
@@ -75,7 +79,10 @@ pub fn run(
             let size = humanize_bytes(s.used_bytes);
 
             if dry_run {
-                debug!("[skip]would destroy[/] [cfg]{}[/] ([data]{}[/])", s.name, size);
+                debug!(
+                    "[skip]would destroy[/] [cfg]{}[/] ([data]{}[/])",
+                    s.name, size
+                );
                 freed += s.used_bytes;
                 count += 1;
             } else {
@@ -87,7 +94,10 @@ pub fn run(
                     count += 1;
                     destroyed_any = true;
                 } else {
-                    error!("Failed to destroy [data]{}[/]: [err]{}[/]", s.name, r.stderr);
+                    error!(
+                        "Failed to destroy [data]{}[/]: [err]{}[/]",
+                        s.name, r.stderr
+                    );
                 }
             }
         }
@@ -116,12 +126,12 @@ pub fn run(
     // Freed space is the sum of each snapshot's `used`; blocks shared between
     // snapshots make this an estimate. Upgrade path: `zfs destroy -nv` reports
     // exact reclaim for a set.
-    pln(&format!(
+    // The caller prints this. `backup -C` must wait until its bar has stopped:
+    // a line written while the bar will redraw is overwritten by cursor moves.
+    Ok(format!(
         "[result]total {}[/] [data]{}[/] across [result]{}[/] snapshots",
         verb,
         humanize_bytes(total_freed),
         total_count
-    ));
-
-    Ok(())
+    ))
 }

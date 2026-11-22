@@ -535,6 +535,7 @@ pub fn run(
     }
 
     let mut progress = BackupProgress::new(jobs.len());
+    let mut cleanup_summaries = Vec::new();
     for (path, cfg) in jobs {
         let start = Instant::now();
         progress.set_outer(&cfg.name);
@@ -546,7 +547,7 @@ pub fn run(
                     progress.pause();
                     let result = crate::cleanup::run(config_directory, Some(name), false, false);
                     progress.resume();
-                    result?;
+                    cleanup_summaries.push(result?);
                 }
                 (Some(name), false) => {
                     info!("Skipping cleanup for [cfg]{}[/]: backup failed", name);
@@ -563,6 +564,9 @@ pub fn run(
         );
     }
     progress.finish();
+    for summary in &cleanup_summaries {
+        crate::cleanup::print_summary(summary);
+    }
 
     info!(
         "Processing [cfg]all[/] took [result]{}[/]",
