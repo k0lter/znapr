@@ -199,14 +199,19 @@ pub fn humanize_bytes(bytes: u64) -> String {
     }
 
     if unit == 0 {
-        format!("{}{}", bytes, UNITS[0])
-    } else if value >= 100.0 {
-        format!("{:.0}{}", value, UNITS[unit])
-    } else if value >= 10.0 {
-        format!("{:.1}{}", value, UNITS[unit])
-    } else {
-        format!("{:.2}{}", value, UNITS[unit])
+        return format!("{}{}", bytes, UNITS[0]);
     }
+
+    // Three significant digits, then drop trailing zeros so 12.0M is 12M.
+    let body = if value >= 100.0 {
+        format!("{value:.0}")
+    } else if value >= 10.0 {
+        format!("{value:.1}")
+    } else {
+        format!("{value:.2}")
+    };
+    let body = body.trim_end_matches('0').trim_end_matches('.');
+    format!("{body}{}", UNITS[unit])
 }
 
 /// The pool a dataset belongs to (its first path component).
@@ -337,9 +342,15 @@ mod tests {
     fn humanize_bytes_matches_zfs_style_units() {
         assert_eq!(humanize_bytes(0), "0B");
         assert_eq!(humanize_bytes(512), "512B");
-        assert_eq!(humanize_bytes(1024), "1.00K");
-        assert_eq!(humanize_bytes(1536), "1.50K");
-        assert_eq!(humanize_bytes(10 * 1024 * 1024), "10.0M");
-        assert_eq!(humanize_bytes(4 * 1024 * 1024 * 1024), "4.00G");
+        assert_eq!(humanize_bytes(1024), "1K");
+        assert_eq!(humanize_bytes(1536), "1.5K");
+        assert_eq!(humanize_bytes(445 * 1024), "445K");
+        assert_eq!(humanize_bytes(12 * 1024 * 1024), "12M");
+        assert_eq!(humanize_bytes(12 * 1024 * 1024 * 1024), "12G");
+        assert_eq!(humanize_bytes(456 * 1024 * 1024 * 1024), "456G");
+        let tib = 1024u64 * 1024 * 1024 * 1024;
+        assert_eq!(humanize_bytes((1.24 * tib as f64).round() as u64), "1.24T");
+        assert_eq!(humanize_bytes((10.4 * tib as f64).round() as u64), "10.4T");
+        assert_eq!(humanize_bytes(565 * tib), "565T");
     }
 }

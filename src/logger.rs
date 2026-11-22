@@ -31,6 +31,9 @@ fn console() -> Console {
         .no_color(false)
         .color_system_override(ColorSystem::TrueColor)
         .markup(true)
+        // ReprHighlighter paints a matched number bold cyan and stops before a
+        // unit letter, so `1.24T` becomes cyan `1.` plus the cell color on `24T`.
+        .highlight(false)
         .width(200)
         .build()
 }
@@ -154,6 +157,27 @@ pub fn progress_enabled() -> bool {
     std::io::stdout().is_terminal()
         && tracing::enabled!(tracing::Level::WARN)
         && !tracing::enabled!(tracing::Level::INFO)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_markup;
+
+    #[test]
+    fn size_markup_keeps_one_color() {
+        for sample in ["[data]1.24T[/]", "[data]10.4T[/]", "[data]445K[/]"] {
+            let rendered = render_markup(sample);
+            assert_eq!(
+                rendered.matches("\u{1b}[0m").count(),
+                1,
+                "{sample} => {rendered:?}"
+            );
+            assert!(
+                !rendered.contains("\u{1b}[1;36m"),
+                "{sample} => {rendered:?}"
+            );
+        }
+    }
 }
 
 /// Alias for `bail!` — messages may contain semantic markup tags, rendered at display time.
