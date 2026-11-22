@@ -173,10 +173,10 @@ The reported freed space is the sum of each snapshot's `used` property. Blocks s
 ### orphaned
 
 ```text
-znapr orphaned [-c DIR] [ZFSROOT]
+znapr orphaned [-c DIR] [POOL_OR_DATASET ...]
 ```
 
-Lists child datasets of a ZFS root that have no matching profile (`zfsroot/name`). Without `ZFSROOT`, every pool from `zpool list` is scanned. The table is the same shape as `list`. These datasets have no cache and are always queried live. `LAST OK` is `-`, because there is no configuration to define a complete backup.
+Lists snapshots named `dataset@YYYY-MM-DD_HH.MM.SS--Nd` whose dataset is not a configured volume (`zfsroot/name/volume`). Without arguments, every pool from `zpool list` is scanned. Each argument is a pool or a dataset and limits the scan to that tree. The table is the same shape as `list`, one row per dataset, queried live from ZFS rather than from the cache. `LAST OK` is `-`, because there is no profile. A name `zfs list` rejects is skipped.
 
 ### recache
 

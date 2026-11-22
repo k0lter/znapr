@@ -102,14 +102,15 @@ enum Commands {
         #[arg(short = 'r', long)]
         reverse: bool,
     },
-    /// List orphaned datasets (backup volumes with no config file)
+    /// List znapr snapshots that belong to no configured volume
     Orphaned {
         /// Configuration directory
         #[arg(short = 'c', long = "config-directory", default_value = "/etc/znapr")]
         config_directory: PathBuf,
 
-        /// zfsroot to scan (default: every pool from `zpool list`)
-        zfsroot: Option<String>,
+        /// Pools or datasets to scan (default: every pool from `zpool list`)
+        #[arg(value_name = "POOL_OR_DATASET")]
+        targets: Vec<String>,
     },
     /// Rebuild the per-backup cache used by `list`
     Recache {
@@ -177,8 +178,8 @@ fn run() -> anyhow::Result<()> {
         )?,
         Commands::Orphaned {
             config_directory,
-            zfsroot,
-        } => orphaned::run(&config_directory, zfsroot.as_deref())?,
+            targets,
+        } => orphaned::run(&config_directory, &targets)?,
         Commands::Recache {
             config_directory,
             target,
