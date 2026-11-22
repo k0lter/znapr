@@ -1,7 +1,10 @@
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use chrono::{DateTime, Local};
+use minijinja::Environment;
+use serde::Serialize;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -118,30 +121,6 @@ fn unloaded(b: &BackupReport) -> bool {
     b.host.is_none() && b.profile.is_none()
 }
 
-fn badge(v: &VolumeReport) -> &'static str {
-    match v.status {
-        Status::Failed => "FAIL",
-        Status::Ok if v.vanished => "VAN",
-        Status::Ok => "OK",
-    }
-}
-
-fn volume_color(v: &VolumeReport) -> &'static str {
-    match v.status {
-        Status::Failed => "#ef4444",
-        Status::Ok if v.vanished => "#f59e0b",
-        Status::Ok => "#22c55e",
-    }
-}
-
-fn text_suffix(v: &VolumeReport) -> &'static str {
-    match v.status {
-        Status::Failed => "!",
-        Status::Ok if v.vanished => "~",
-        Status::Ok => "",
-    }
-}
-
 pub fn subject(report: &RunReport) -> String {
     let (ok, failed) = report.counts();
     let state = if report.has_errors() { "ERRORS" } else { "OK" };
@@ -151,246 +130,120 @@ pub fn subject(report: &RunReport) -> String {
     )
 }
 
-fn push_text_header(out: &mut String, report: &RunReport) {
-    let (ok, failed) = report.counts();
-    let state = if report.has_errors() { "ERRORS" } else { "OK" };
-    out.push_str(&format!("znapr backup report - {}\n", report.hostname));
-    out.push_str(&format!(
-        "Started : {}\n",
-        report.started.format("%Y-%m-%d %H:%M:%S")
-    ));
-    out.push_str(&format!("Duration: {}\n", fmt_duration(report.duration)));
-    out.push_str(&format!("Status  : {state}  ({ok} ok, {failed} failed)\n"));
-    out.push('\n');
+#[derive(Serialize)]
+struct VolumeView {
+    name: String,
+    source: String,
+    duration: String,
+    failed: bool,
+    vanished: bool,
+    error: Option<String>,
 }
 
-fn push_profile_heading(out: &mut String, b: &BackupReport) {
-    let file = config_label(&b.config_file);
-    if unloaded(b) {
-        out.push_str(&format!("* {file}\n"));
-        return;
+#[derive(Serialize)]
+struct BackupView {
+    title: String,
+    label: String,
+    duration: String,
+    unloaded: bool,
+    error: Option<String>,
+    volumes: Vec<VolumeView>,
+}
+
+#[derive(Serialize)]
+struct MailView {
+    hostname: String,
+    started: String,
+    duration: String,
+    state: &'static str,
+    ok: usize,
+    failed: usize,
+    accent: &'static str,
+    extended: bool,
+    backups: Vec<BackupView>,
+}
+
+fn trimmed(error: &Option<String>) -> Option<String> {
+    error.as_ref().map(|err| err.trim().to_string())
+}
+
+fn mail_view(report: &RunReport, extended: bool) -> MailView {
+    let (ok, failed) = report.counts();
+    let error = report.has_errors();
+    MailView {
+        hostname: report.hostname.clone(),
+        started: report.started.format("%Y-%m-%d %H:%M:%S").to_string(),
+        duration: fmt_duration(report.duration),
+        state: if error { "ERRORS" } else { "OK" },
+        ok,
+        failed,
+        // Self-contained palette: the same colors in light and dark clients.
+        accent: if error { "#ef4444" } else { "#22c55e" },
+        extended,
+        backups: report.backups.iter().map(backup_view).collect(),
     }
-    let label = profile_label(b, file);
-    out.push_str(&format!(
-        "* {}  ({label})  {}\n",
-        profile_title(b, file),
-        fmt_duration(b.duration)
-    ));
+}
+
+fn backup_view(backup: &BackupReport) -> BackupView {
+    let file = config_label(&backup.config_file);
+    BackupView {
+        title: profile_title(backup, file).to_string(),
+        label: profile_label(backup, file).to_string(),
+        duration: fmt_duration(backup.duration),
+        unloaded: unloaded(backup),
+        error: trimmed(&backup.error),
+        volumes: backup.volumes.iter().map(volume_view).collect(),
+    }
+}
+
+fn volume_view(volume: &VolumeReport) -> VolumeView {
+    VolumeView {
+        name: volume.name.clone(),
+        source: volume.source.clone(),
+        duration: fmt_duration(volume.duration),
+        failed: volume.status == Status::Failed,
+        vanished: volume.vanished,
+        error: trimmed(&volume.error),
+    }
+}
+
+fn rjust(value: String, width: i64) -> String {
+    format!("{value:>width$}", width = width.max(0) as usize)
+}
+
+fn ljust(value: String, width: i64) -> String {
+    format!("{value:<width$}", width = width.max(0) as usize)
+}
+
+fn environment() -> &'static Environment<'static> {
+    static ENV: OnceLock<Environment<'static>> = OnceLock::new();
+    ENV.get_or_init(|| {
+        let mut env = Environment::new();
+        env.add_filter("rjust", rjust);
+        env.add_filter("ljust", ljust);
+        // Included at compile time: the binary does not read these at startup.
+        env.add_template("report.txt", include_str!("../templates/mail/report.txt"))
+            .expect("report.txt");
+        env.add_template("report.html", include_str!("../templates/mail/report.html"))
+            .expect("report.html");
+        env
+    })
+}
+
+fn render_template(name: &str, report: &RunReport, extended: bool) -> String {
+    environment()
+        .get_template(name)
+        .unwrap_or_else(|err| panic!("{name}: {err}"))
+        .render(mail_view(report, extended))
+        .unwrap_or_else(|err| panic!("{name}: {err}"))
 }
 
 pub fn render_text(report: &RunReport, extended: bool) -> String {
-    let mut out = String::new();
-    push_text_header(&mut out, report);
-
-    for b in &report.backups {
-        push_profile_heading(&mut out, b);
-
-        if let Some(err) = &b.error {
-            out.push_str(&format!("    ! {}\n", err.trim()));
-        }
-
-        if extended {
-            for v in &b.volumes {
-                out.push_str(&format!(
-                    "    [{:>4}] {:<20} {:>8}   {}\n",
-                    badge(v),
-                    v.name,
-                    fmt_duration(v.duration),
-                    v.source
-                ));
-                if let Some(err) = &v.error {
-                    out.push_str(&format!("           -> {}\n", err.trim()));
-                }
-            }
-        } else if !b.volumes.is_empty() {
-            let names: Vec<String> = b
-                .volumes
-                .iter()
-                .map(|v| format!("{}{}", v.name, text_suffix(v)))
-                .collect();
-            out.push_str(&format!("    {}\n", names.join(" ")));
-            for v in &b.volumes {
-                if v.status == Status::Failed
-                    && let Some(err) = &v.error
-                {
-                    out.push_str(&format!("    {}: {}\n", v.name, err.trim()));
-                }
-            }
-        }
-        out.push('\n');
-    }
-
-    if !extended {
-        out.push_str("Volumes: name ok, name~ vanished files accepted, name! failed.\n");
-    }
-
-    out
-}
-
-fn esc(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
+    render_template("report.txt", report, extended)
 }
 
 pub fn render_html(report: &RunReport, extended: bool) -> String {
-    // Self-contained dark card with an explicit palette: renders consistently
-    // in both light and dark clients (we set our own background/foreground).
-    let (ok, failed) = report.counts();
-    let error = report.has_errors();
-    let accent = if error { "#ef4444" } else { "#22c55e" };
-    let state = if error { "ERRORS" } else { "OK" };
-
-    let rows = if extended {
-        extended_rows(report)
-    } else {
-        compact_rows(report)
-    };
-
-    format!(
-        r#"<!doctype html>
-<html>
-<head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"></head>
-<body style="margin:0;padding:24px;background:#020617;color-scheme:light dark;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;background:#0f172a;border:1px solid #1e293b;border-radius:14px;overflow:hidden;">
-    <tr>
-      <td style="padding:20px 16px;border-left:4px solid {accent};background:#0b1220;">
-        <div style="font-size:18px;font-weight:700;color:#f8fafc;">znapr backup report</div>
-        <div style="font-size:13px;color:#94a3b8;margin-top:4px;">{host} &nbsp;&middot;&nbsp; {started}</div>
-        <div style="margin-top:12px;">
-          <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:{accent};background:{accent}1f;">{state}</span>
-          <span style="color:#22c55e;font-size:13px;margin-left:8px;">{ok} ok</span>
-          <span style="color:#ef4444;font-size:13px;margin-left:8px;">{failed} failed</span>
-          <span style="color:#64748b;font-size:13px;margin-left:8px;">in {dur}</span>
-        </div>
-      </td>
-    </tr>
-    <tr><td style="padding:0;">
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">{rows}</table>
-    </td></tr>
-  </table>
-  <div style="max-width:640px;margin:12px auto 0;color:#475569;font-size:11px;text-align:center;">Generated by znapr</div>
-</body>
-</html>"#,
-        accent = accent,
-        host = esc(&report.hostname),
-        started = esc(&report.started.format("%Y-%m-%d %H:%M:%S").to_string()),
-        state = state,
-        ok = ok,
-        failed = failed,
-        dur = esc(&fmt_duration(report.duration)),
-        rows = rows,
-    )
-}
-
-fn pill(v: &VolumeReport) -> String {
-    let color = volume_color(v);
-    format!(
-        r#"<span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;color:{color};background:{color}1a;">{}</span>"#,
-        esc(&v.name)
-    )
-}
-
-fn compact_rows(report: &RunReport) -> String {
-    let mut rows = String::new();
-    for (i, b) in report.backups.iter().enumerate() {
-        let file = config_label(&b.config_file);
-        let title = esc(profile_title(b, file));
-        let border = if i == 0 {
-            String::new()
-        } else {
-            "border-top:1px solid #1e293b;".to_string()
-        };
-        let (subtitle, dur) = if unloaded(b) {
-            ("profile did not load".to_string(), String::new())
-        } else {
-            (profile_label(b, file).to_string(), fmt_duration(b.duration))
-        };
-        let pills: String = b.volumes.iter().map(pill).collect();
-        rows.push_str(&format!(
-            r#"<tr>
-                 <td style="padding:8px 16px;{border}width:210px;vertical-align:top;"><div style="font-size:14px;font-weight:600;color:#f1f5f9;">{title}</div><div style="font-size:11px;color:#64748b;">{subtitle}</div></td>
-                 <td style="padding:8px;{border}width:56px;font-size:12px;color:#64748b;vertical-align:top;">{dur}</td>
-                 <td style="padding:8px 16px 8px 8px;{border}">{pills}</td>
-               </tr>"#,
-            subtitle = esc(&subtitle),
-            dur = esc(&dur),
-        ));
-        for v in &b.volumes {
-            if v.status == Status::Failed
-                && let Some(err) = &v.error
-            {
-                rows.push_str(&format!(
-                    r#"<tr><td></td><td></td><td style="padding:0 16px 8px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#fca5a5;">{}: {}</td></tr>"#,
-                    esc(&v.name),
-                    esc(err.trim())
-                ));
-            }
-        }
-        if let Some(err) = &b.error {
-            rows.push_str(&format!(
-                r#"<tr><td></td><td></td><td style="padding:0 16px 8px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#fca5a5;">{}</td></tr>"#,
-                esc(err.trim())
-            ));
-        }
-    }
-    rows
-}
-
-fn extended_rows(report: &RunReport) -> String {
-    let mut rows = String::new();
-    for (i, b) in report.backups.iter().enumerate() {
-        let file = config_label(&b.config_file);
-        let title = esc(profile_title(b, file));
-        let border = if i == 0 {
-            String::new()
-        } else {
-            "border-top:1px solid #1e293b;".to_string()
-        };
-        let meta = if unloaded(b) {
-            "profile did not load".to_string()
-        } else {
-            format!(
-                "{} &nbsp;&middot;&nbsp; {}",
-                profile_label(b, file),
-                fmt_duration(b.duration)
-            )
-        };
-        rows.push_str(&format!(
-            r#"<tr><td colspan="3" style="padding:14px 16px 4px;{border}font-weight:600;font-size:15px;color:#f1f5f9;">{title} <span style="color:#64748b;font-weight:400;font-size:12px;">{meta}</span></td></tr>"#,
-        ));
-
-        if let Some(err) = &b.error {
-            rows.push_str(&format!(
-                r#"<tr><td colspan="3" style="padding:2px 16px 8px;color:#fca5a5;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;">{err}</td></tr>"#,
-                err = esc(err.trim())
-            ));
-        }
-
-        for v in &b.volumes {
-            let color = volume_color(v);
-            rows.push_str(&format!(
-                r#"<tr>
-                     <td style="padding:6px 16px;white-space:nowrap;">
-                       <span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;color:{color};background:{color}1a;">{status}</span>
-                     </td>
-                     <td style="padding:6px 16px;color:#e2e8f0;font-size:14px;">{name}<div style="color:#64748b;font-size:12px;">{source}</div></td>
-                     <td style="padding:6px 16px;color:#94a3b8;font-size:13px;text-align:right;white-space:nowrap;">{dur}</td>
-                   </tr>"#,
-                status = badge(v),
-                name = esc(&v.name),
-                source = esc(&v.source),
-                dur = esc(&fmt_duration(v.duration)),
-            ));
-            if let Some(err) = &v.error {
-                rows.push_str(&format!(
-                    r#"<tr><td></td><td colspan="2" style="padding:0 16px 8px;color:#fca5a5;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;">{}</td></tr>"#,
-                    esc(err.trim())
-                ));
-            }
-        }
-    }
-    rows
+    render_template("report.html", report, extended)
 }
 
 #[cfg(test)]

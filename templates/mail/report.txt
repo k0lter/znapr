@@ -1,0 +1,38 @@
+znapr backup report - {{ hostname }}
+Started : {{ started }}
+Duration: {{ duration }}
+Status  : {{ state }}  ({{ ok }} ok, {{ failed }} failed)
+
+{% for backup in backups -%}
+{% if backup.unloaded -%}
+* {{ backup.title }}
+{% else -%}
+* {{ backup.title }}  ({{ backup.label }})  {{ backup.duration }}
+{% endif -%}
+{% if backup.error is not none -%}
+{{ "    ! " }}{{ backup.error }}
+{% endif -%}
+{% if extended -%}
+{% for volume in backup.volumes -%}
+{% if volume.failed %}{% set badge = "FAIL" %}{% elif volume.vanished %}{% set badge = "VAN" %}{% else %}{% set badge = "OK" %}{% endif -%}
+{{ "    [" }}{{ badge|rjust(4) }}] {{ volume.name|ljust(20) }} {{ volume.duration|rjust(8) }}   {{ volume.source }}
+{% if volume.error is not none -%}
+{{ "           -> " }}{{ volume.error }}
+{% endif -%}
+{% endfor -%}
+{% elif backup.volumes -%}
+{% for volume in backup.volumes -%}
+{%- if loop.first %}    {% else %} {% endif -%}
+{{- volume.name -}}
+{%- if volume.failed %}!{% elif volume.vanished %}~{% endif -%}
+{%- endfor %}
+{% for volume in backup.volumes -%}
+{% if volume.failed and volume.error is not none -%}
+{{ "    " }}{{ volume.name }}: {{ volume.error }}
+{% endif -%}
+{% endfor -%}
+{% endif %}
+{% endfor -%}
+{% if not extended -%}
+Volumes: name ok, name~ vanished files accepted, name! failed.
+{% endif -%}
