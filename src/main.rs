@@ -101,6 +101,10 @@ enum Commands {
         /// Reverse the sort order
         #[arg(short = 'r', long)]
         reverse: bool,
+
+        /// Add a final row with the sums
+        #[arg(short = 'T', long = "total")]
+        total: bool,
     },
     /// List znapr snapshots that belong to no configured volume
     Orphaned {
@@ -111,6 +115,10 @@ enum Commands {
         /// Pools or datasets to scan (default: every pool from `zpool list`)
         #[arg(value_name = "POOL_OR_DATASET")]
         targets: Vec<String>,
+
+        /// Add a final row with the sums
+        #[arg(short = 'T', long = "total")]
+        total: bool,
     },
     /// Rebuild the per-backup cache used by `list`
     Recache {
@@ -169,17 +177,20 @@ fn run() -> anyhow::Result<()> {
             sort_size,
             sort_last,
             reverse,
+            total,
         } => list::run(
             &config_directory,
             target.as_deref(),
             sort_size,
             sort_last,
             reverse,
+            total,
         )?,
         Commands::Orphaned {
             config_directory,
             targets,
-        } => orphaned::run(&config_directory, &targets)?,
+            total,
+        } => orphaned::run(&config_directory, &targets, total)?,
         Commands::Recache {
             config_directory,
             target,

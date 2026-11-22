@@ -26,15 +26,22 @@ pub(crate) struct Row {
     used_bytes: u64,
     last_ok_date: Option<NaiveDateTime>,
     has_expired: bool,
+    snapshot_count: usize,
+    expired_count: usize,
+    pool: String,
+    pool_bytes: Option<u64>,
 }
 
 pub(crate) fn row_from_cache(
     display_name: &str,
     cache: &BackupCache,
     now: NaiveDateTime,
+    pool: &str,
     pool_size: Option<u64>,
     volumes: &[String],
 ) -> Row {
+    let pool_bytes = pool_size.filter(|size| *size > 0);
+
     if !cache.exists {
         return Row {
             name: display_name.to_string(),
@@ -46,15 +53,17 @@ pub(crate) fn row_from_cache(
             used_bytes: 0,
             last_ok_date: None,
             has_expired: false,
+            snapshot_count: 0,
+            expired_count: 0,
+            pool: pool.to_string(),
+            pool_bytes,
         };
     }
 
     let expired = cache.expired_count(now);
-    let pool_pct = match pool_size {
-        Some(size) if size > 0 => {
-            format!("{:.1}%", cache.used_bytes as f64 / size as f64 * 100.0)
-        }
-        _ => "-".to_string(),
+    let pool_pct = match pool_bytes {
+        Some(size) => format!("{:.1}%", cache.used_bytes as f64 / size as f64 * 100.0),
+        None => "-".to_string(),
     };
 
     let last_ok_date = cache.last_full_success(volumes);
@@ -72,7 +81,53 @@ pub(crate) fn row_from_cache(
         used_bytes: cache.used_bytes,
         last_ok_date,
         has_expired: expired > 0,
+        snapshot_count: cache.snapshots.len(),
+        expired_count: expired,
+        pool: pool.to_string(),
+        pool_bytes,
     }
+}
+
+/// One trailing row: sums of snapshots, expired, and used space. The percent
+/// is total used over the sum of distinct pool sizes. A missing pool size
+/// makes that cell `-`.
+pub(crate) fn append_total(rows: &mut Vec<Row>) {
+    let snapshots: usize = rows.iter().map(|r| r.snapshot_count).sum();
+    let expired: usize = rows.iter().map(|r| r.expired_count).sum();
+    let used_bytes: u64 = rows.iter().map(|r| r.used_bytes).sum();
+
+    let mut pools: HashMap<&str, u64> = HashMap::new();
+    let mut missing_pool = false;
+    for row in rows.iter() {
+        match row.pool_bytes {
+            Some(size) => {
+                pools.insert(row.pool.as_str(), size);
+            }
+            None => missing_pool = true,
+        }
+    }
+    let pool_pct = match pools.values().copied().sum::<u64>() {
+        denom if !missing_pool && denom > 0 => {
+            format!("{:.1}%", used_bytes as f64 / denom as f64 * 100.0)
+        }
+        _ => "-".to_string(),
+    };
+
+    rows.push(Row {
+        name: "TOTAL".to_string(),
+        snapshots: snapshots.to_string(),
+        expired: expired.to_string(),
+        used: humanize_bytes(used_bytes),
+        pool_pct,
+        last_ok: "-".to_string(),
+        used_bytes,
+        last_ok_date: None,
+        has_expired: expired > 0,
+        snapshot_count: snapshots,
+        expired_count: expired,
+        pool: String::new(),
+        pool_bytes: None,
+    });
 }
 
 pub(crate) fn sort_rows(rows: &mut [Row], by: SortBy, reverse: bool) {
@@ -98,7 +153,14 @@ fn pad_right(s: &str, w: usize) -> String {
 }
 
 pub(crate) fn print_table(name_header: &str, rows: &[Row]) {
-    let headers = [name_header, "SNAPSHOTS", "EXPIRED", "USED", "POOL%", "LAST OK"];
+    let headers = [
+        name_header,
+        "SNAPSHOTS",
+        "EXPIRED",
+        "USED",
+        "POOL%",
+        "LAST OK",
+    ];
 
     let mut w = headers.map(str::len);
     for r in rows {
@@ -143,6 +205,7 @@ pub fn run(
     sort_size: bool,
     sort_last: bool,
     reverse: bool,
+    total: bool,
 ) -> Result<()> {
     let now = Local::now().naive_local();
     let sort_by = if sort_size {
@@ -201,12 +264,71 @@ pub fn run(
             .entry(pool.clone())
             .or_insert_with(|| cache::pool_size(&pool));
 
-        rows.push(row_from_cache(&name, &entry, now, size, &volumes));
+        rows.push(row_from_cache(&name, &entry, now, &pool, size, &volumes));
     }
     bar.finish();
 
     sort_rows(&mut rows, sort_by, reverse);
+    if total {
+        append_total(&mut rows);
+    }
     print_table("NAME", &rows);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row(
+        name: &str,
+        snaps: usize,
+        expired: usize,
+        used: u64,
+        pool: &str,
+        pool_bytes: Option<u64>,
+    ) -> Row {
+        Row {
+            name: name.to_string(),
+            snapshots: snaps.to_string(),
+            expired: expired.to_string(),
+            used: humanize_bytes(used),
+            pool_pct: "-".to_string(),
+            last_ok: "-".to_string(),
+            used_bytes: used,
+            last_ok_date: None,
+            has_expired: expired > 0,
+            snapshot_count: snaps,
+            expired_count: expired,
+            pool: pool.to_string(),
+            pool_bytes,
+        }
+    }
+
+    #[test]
+    fn append_total_sums_counts_and_distinct_pools() {
+        let mut rows = vec![
+            row("a", 2, 1, 10, "tank", Some(100)),
+            row("b", 3, 0, 10, "tank", Some(100)),
+            row("c", 1, 0, 20, "rpool", Some(200)),
+        ];
+        append_total(&mut rows);
+
+        let total = rows.last().unwrap();
+        assert_eq!(total.name, "TOTAL");
+        assert_eq!(total.snapshots, "6");
+        assert_eq!(total.expired, "1");
+        assert_eq!(total.used, "40B");
+        assert_eq!(total.pool_pct, "13.3%");
+        assert_eq!(total.last_ok, "-");
+        assert!(total.has_expired);
+
+        let mut missing = vec![
+            row("a", 1, 0, 10, "tank", Some(100)),
+            row("b", 1, 0, 10, "rpool", None),
+        ];
+        append_total(&mut missing);
+        assert_eq!(missing.last().unwrap().pool_pct, "-");
+    }
 }

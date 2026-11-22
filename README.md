@@ -142,7 +142,7 @@ Runs every profile, or only the named ones.
 ### list
 
 ```text
-znapr list [-c DIR] [-S | -L] [-r] [PROFILE]
+znapr list [-c DIR] [-S | -L] [-r] [-T] [PROFILE]
 ```
 
 Prints one row per configured profile: snapshot count, expired snapshot count, space used, percent of the pool, and the date of the last backup in which every configured volume had a snapshot. A cold cache is filled from ZFS; a warm cache is not queried again.
@@ -152,6 +152,7 @@ Prints one row per configured profile: snapshot count, expired snapshot count, s
 | `-S`, `--sort-size` | Largest used space first. |
 | `-L`, `--sort-last` | Most recent fully successful backup first. |
 | `-r`, `--reverse` | Reverse the chosen order. |
+| `-T`, `--total` | Add a final row with the sums of snapshots, expired, and used space. The percent is total used divided by the sum of distinct pool sizes. |
 
 The default order is by profile name.
 
@@ -173,10 +174,10 @@ The reported freed space is the sum of each snapshot's `used` property. Blocks s
 ### orphaned
 
 ```text
-znapr orphaned [-c DIR] [POOL_OR_DATASET ...]
+znapr orphaned [-c DIR] [-T] [POOL_OR_DATASET ...]
 ```
 
-Lists snapshots named `dataset@YYYY-MM-DD_HH.MM.SS--Nd` whose dataset is not a configured volume (`zfsroot/name/volume`). Without arguments, every pool from `zpool list` is scanned. Each argument is a pool or a dataset and limits the scan to that tree. The table is the same shape as `list`, one row per dataset, queried live from ZFS rather than from the cache. `LAST OK` is `-`, because there is no profile. A name `zfs list` rejects is skipped.
+Lists snapshots named `dataset@YYYY-MM-DD_HH.MM.SS--Nd` whose dataset is not a configured volume (`zfsroot/name/volume`). Without arguments, every pool from `zpool list` is scanned. Each argument is a pool or a dataset and limits the scan to that tree. The table is the same shape as `list`, one row per dataset, queried live from ZFS rather than from the cache. `-T` adds the same total row as `list`. `LAST OK` is `-`, because there is no profile. A name `zfs list` rejects is skipped.
 
 ### recache
 

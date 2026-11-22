@@ -8,7 +8,7 @@ use tracing::error;
 use crate::backup::{call, config_files};
 use crate::cache::{self, snapshot_expiry};
 use crate::config::Config;
-use crate::list::{SortBy, print_table, row_from_cache, sort_rows};
+use crate::list::{SortBy, append_total, print_table, row_from_cache, sort_rows};
 
 /// Snapshot names under `root`. A root `zfs list` rejects yields nothing.
 fn snapshots_under(root: &str) -> Vec<String> {
@@ -86,7 +86,7 @@ fn orphan_datasets<'a>(
     out
 }
 
-pub fn run(config_directory: &Path, targets: &[String]) -> Result<()> {
+pub fn run(config_directory: &Path, targets: &[String], total: bool) -> Result<()> {
     let mut known: HashSet<String> = HashSet::new();
     for path in config_files(config_directory)? {
         match Config::load(path.as_path()) {
@@ -125,12 +125,16 @@ pub fn run(config_directory: &Path, targets: &[String]) -> Result<()> {
             &dataset,
             &cache::build(&dataset, &dataset),
             now,
+            &pool,
             size,
             &[],
         ));
     }
 
     sort_rows(&mut rows, SortBy::Name, false);
+    if total {
+        append_total(&mut rows);
+    }
     print_table("DATASET", &rows);
 
     Ok(())
