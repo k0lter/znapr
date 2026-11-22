@@ -57,11 +57,20 @@ enum Commands {
         targets: Vec<String>,
 
         /// Send a backup report e-mail to this address (via the local MTA)
-        #[arg(short = 'M', long = "mail-report", value_name = "EMAIL")]
-        mail_report: Option<String>,
+        #[arg(short = 'M', long = "mail-report-to", value_name = "EMAIL")]
+        mail_report_to: Option<String>,
 
-        /// Only send the report if a backup failed (implies --mail-report)
-        #[arg(short = 'E', long = "errors-only", requires = "mail_report")]
+        /// Sender address of the report. Default is `znapr@` plus `hostname -f`
+        #[arg(
+            short = 'F',
+            long = "mail-report-from",
+            value_name = "EMAIL",
+            requires = "mail_report_to"
+        )]
+        mail_report_from: Option<String>,
+
+        /// Only send the report if a backup failed (requires --mail-report-to)
+        #[arg(short = 'E', long = "errors-only", requires = "mail_report_to")]
         errors_only: bool,
 
         /// Destroy expired snapshots of each fully successful profile (same as `cleanup`)
@@ -69,7 +78,7 @@ enum Commands {
         cleanup: bool,
 
         /// One line per volume, with its source and duration. The default report is one line per profile.
-        #[arg(short = 'X', long = "extended-report", requires = "mail_report")]
+        #[arg(short = 'X', long = "extended-report", requires = "mail_report_to")]
         extended_report: bool,
     },
     /// List configured backups with their snapshot count and used space
@@ -139,14 +148,16 @@ fn run() -> anyhow::Result<()> {
         Commands::Backup {
             config_directory,
             targets,
-            mail_report,
+            mail_report_to,
+            mail_report_from,
             errors_only,
             cleanup,
             extended_report,
         } => backup::run(
             &config_directory,
             &targets,
-            mail_report.as_deref(),
+            mail_report_to.as_deref(),
+            mail_report_from.as_deref(),
             errors_only,
             cleanup,
             extended_report,

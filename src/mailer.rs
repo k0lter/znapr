@@ -62,22 +62,63 @@ fn message_stamp() -> (u32, u128) {
     (std::process::id(), nanos)
 }
 
+/// Domain of the default sender. A trimmed `hostname -f` result wins; otherwise
+/// the short name already stored on the report.
+fn sender_domain(fqdn: Option<&str>, fallback: &str) -> String {
+    fqdn.map(str::trim)
+        .filter(|name| !name.is_empty())
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+/// `hostname -f` is the FQDN on Linux. FreeBSD accepts `-f` and prints the name
+/// set at boot (`hostname=` in rc.conf), without a DNS lookup.
+fn hostname_fqdn() -> Option<String> {
+    let output = Command::new("hostname").arg("-f").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let name = String::from_utf8(output.stdout).ok()?;
+    let name = name.trim();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
+}
+
+/// Explicit `-F` replaces the whole From. Blank falls back to `znapr@<fqdn>`.
+fn report_from(override_from: Option<&str>, fallback_host: &str) -> String {
+    if let Some(from) = override_from.map(str::trim).filter(|s| !s.is_empty()) {
+        return from.to_string();
+    }
+    format!(
+        "znapr@{}",
+        sender_domain(hostname_fqdn().as_deref(), fallback_host)
+    )
+}
+
+fn message_domain<'a>(from: &'a str, fallback: &'a str) -> &'a str {
+    from.rsplit_once('@')
+        .map(|(_, domain)| domain.trim().trim_end_matches('>').trim())
+        .filter(|domain| !domain.is_empty())
+        .unwrap_or(fallback)
+}
+
 fn build_message(from: &str, to: &str, report: &RunReport, extended: bool) -> String {
     let subject = report::subject(report);
     let text = report::render_text(report, extended);
     let html = report::render_html(report, extended);
     let (pid, nanos) = message_stamp();
     let boundary = format!("znapr_{pid}_{nanos}");
+    let domain = message_domain(from, &report.hostname);
 
     let mut m = String::new();
     m.push_str(&format!("From: {from}\r\n"));
     m.push_str(&format!("To: {to}\r\n"));
     m.push_str(&format!("Subject: {subject}\r\n"));
     m.push_str(&format!("Date: {}\r\n", report.started.to_rfc2822()));
-    m.push_str(&format!(
-        "Message-ID: <znapr.{pid}.{nanos}@{}>\r\n",
-        report.hostname
-    ));
+    m.push_str(&format!("Message-ID: <znapr.{pid}.{nanos}@{domain}>\r\n"));
     m.push_str("Auto-Submitted: auto-generated\r\n");
     m.push_str("MIME-Version: 1.0\r\n");
     m.push_str(&format!(
@@ -103,8 +144,8 @@ fn build_message(from: &str, to: &str, report: &RunReport, extended: bool) -> St
 
 /// Send the report as a multipart/alternative (text + HTML) e-mail via the
 /// local MTA's sendmail interface.
-pub fn send(report: &RunReport, to: &str, extended: bool) -> Result<()> {
-    let from = format!("znapr@{}", report.hostname);
+pub fn send(report: &RunReport, to: &str, from: Option<&str>, extended: bool) -> Result<()> {
+    let from = report_from(from, &report.hostname);
     let message = build_message(&from, to, report, extended);
 
     let mut child = Command::new(sendmail_path())
@@ -171,6 +212,15 @@ mod tests {
         assert!(msg.contains("Auto-Submitted: auto-generated\r\n"));
         assert!(msg.contains("Message-ID: <znapr."));
         assert!(msg.contains("@host>\r\n"));
+
+        let overridden = build_message(
+            "Backup <znapr@backup.example.com>",
+            "ops@example.com",
+            &report,
+            false,
+        );
+        assert!(overridden.contains("From: Backup <znapr@backup.example.com>\r\n"));
+        assert!(overridden.contains("@backup.example.com>\r\n"));
         assert!(msg.contains("znapr backup report"));
         assert_eq!(
             msg.matches("Content-Transfer-Encoding: quoted-printable")
@@ -179,6 +229,25 @@ mod tests {
         );
         assert!(!msg.contains("base64"));
         assert!(msg.trim_end().ends_with("--"));
+    }
+
+    #[test]
+    fn sender_domain_prefers_a_trimmed_fqdn() {
+        assert_eq!(
+            sender_domain(Some("  backup.example.com  "), "host"),
+            "backup.example.com"
+        );
+        assert_eq!(sender_domain(Some("  "), "host"), "host");
+        assert_eq!(sender_domain(None, "host"), "host");
+    }
+
+    #[test]
+    fn report_from_keeps_an_explicit_address() {
+        assert_eq!(
+            report_from(Some("  ops@example.com  "), "host"),
+            "ops@example.com"
+        );
+        assert_eq!(report_from(Some("   "), "host"), report_from(None, "host"));
     }
 
     #[test]

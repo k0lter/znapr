@@ -125,7 +125,7 @@ On a terminal, `-vv` drops the bar and lets rsync print its own progress.
 ### backup
 
 ```text
-znapr backup [-c DIR] [-M EMAIL] [-E] [-X] [-C] [PROFILE ...]
+znapr backup [-c DIR] [-M EMAIL] [-F EMAIL] [-E] [-X] [-C] [PROFILE ...]
 ```
 
 Runs every profile, or only the named ones.
@@ -133,7 +133,8 @@ Runs every profile, or only the named ones.
 | Flag | Effect |
 | --- | --- |
 | `-c`, `--config-directory` | Profile directory. Default `/etc/znapr`. |
-| `-M`, `--mail-report EMAIL` | Send a report to this address through the local MTA. |
+| `-M`, `--mail-report-to EMAIL` | Send a report to this address through the local MTA. |
+| `-F`, `--mail-report-from EMAIL` | Sender address. Default is `znapr@` plus `hostname -f`. Requires `-M`. |
 | `-E`, `--errors-only` | Send that report only when a backup failed. Requires `-M`. |
 | `-X`, `--extended-report` | One line per volume, with its source and its own duration. Requires `-M`. The default report is one line per profile. |
 | `-C`, `--cleanup` | After each fully successful profile, destroy its expired snapshots. |
@@ -201,7 +202,7 @@ znapr backup -M ops@example.com -E
 znapr backup -M ops@example.com -X
 ```
 
-The message is `multipart/alternative` (plain text and HTML), sent with `sendmail -t -i`. The sender is `znapr@<hostname>`, from `/etc/hostname`. The subject states whether the run failed and how many volumes succeeded. `-E` skips the message when every volume succeeded. If `sendmail` cannot be started or exits non-zero, the error is logged and the backup command still exits 0.
+The message is `multipart/alternative` (plain text and HTML), sent with `sendmail -t -i`. The sender is `znapr@<fqdn>` from `hostname -f`, or the short name from `/etc/hostname` when that command fails. `-F` replaces the whole address. The subject states whether the run failed and how many volumes succeeded. `-E` skips the message when every volume succeeded. If `sendmail` cannot be started or exits non-zero, the error is logged and the backup command still exits 0.
 
 The default report is compact: one row per profile (one YAML file, one remote host). The row shows the host and the profile `name`, then that profile's duration and each volume. A file that did not load has no name, so the row shows its filename. Green is success, including a vanished transfer accepted silently. Amber is a vanished file accepted with a warning. Red is a real failure, and the reason is on the next line. The bar on the left of the header is green when the run is OK and red when it has errors. A vanished volume still counts as ok, so `-E` does not send for that alone.
 

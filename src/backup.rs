@@ -493,7 +493,8 @@ fn profile_succeeded(report: &BackupReport) -> bool {
 pub fn run(
     config_directory: &Path,
     targets: &[String],
-    mail_report: Option<&str>,
+    mail_report_to: Option<&str>,
+    mail_report_from: Option<&str>,
     errors_only: bool,
     cleanup: bool,
     extended_report: bool,
@@ -575,10 +576,10 @@ pub fn run(
         backups,
     };
 
-    if let Some(to) = mail_report {
+    if let Some(to) = mail_report_to {
         if errors_only && !report.has_errors() {
             info!("No errors: skipping mail report ([cfg]--errors-only[/])");
-        } else if let Err(e) = crate::mailer::send(&report, to, extended_report) {
+        } else if let Err(e) = crate::mailer::send(&report, to, mail_report_from, extended_report) {
             error!("Failed to send mail report: {:#}", e);
         } else {
             info!("Sent backup report to [cfg]{}[/]", to);
