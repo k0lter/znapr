@@ -98,6 +98,18 @@ fn report_from(override_from: Option<&str>, fallback_host: &str) -> String {
     )
 }
 
+/// Addr-spec for `sendmail -f`. `Name <addr>` keeps only `addr`.
+fn envelope_sender(from: &str) -> &str {
+    if let (Some(open), Some(close)) = (from.rfind('<'), from.rfind('>'))
+        && close > open
+        && let addr = from[open + 1..close].trim()
+        && !addr.is_empty()
+    {
+        return addr;
+    }
+    from.trim()
+}
+
 fn message_domain<'a>(from: &'a str, fallback: &'a str) -> &'a str {
     from.rsplit_once('@')
         .map(|(_, domain)| domain.trim().trim_end_matches('>').trim())
@@ -148,8 +160,9 @@ pub fn send(report: &RunReport, to: &str, from: Option<&str>, extended: bool) ->
     let from = report_from(from, &report.hostname);
     let message = build_message(&from, to, report, extended);
 
+    let envelope = envelope_sender(&from);
     let mut child = Command::new(sendmail_path())
-        .args(["-t", "-i"])
+        .args(["-t", "-i", "-f", envelope])
         .stdin(Stdio::piped())
         .spawn()
         .context("Failed to spawn sendmail (is an MTA installed?)")?;
@@ -248,6 +261,12 @@ mod tests {
             "ops@example.com"
         );
         assert_eq!(report_from(Some("   "), "host"), report_from(None, "host"));
+    }
+
+    #[test]
+    fn envelope_sender_uses_the_address_inside_brackets() {
+        assert_eq!(envelope_sender("znapr@host"), "znapr@host");
+        assert_eq!(envelope_sender("Nom <znapr@host>"), "znapr@host");
     }
 
     #[test]

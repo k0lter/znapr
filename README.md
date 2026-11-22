@@ -202,7 +202,7 @@ znapr backup -M ops@example.com -E
 znapr backup -M ops@example.com -X
 ```
 
-The message is `multipart/alternative` (plain text and HTML), sent with `sendmail -t -i`. The sender is `znapr@<fqdn>` from `hostname -f`, or the short name from `/etc/hostname` when that command fails. `-F` replaces the whole address. The subject states whether the run failed and how many volumes succeeded. `-E` skips the message when every volume succeeded. If `sendmail` cannot be started or exits non-zero, the error is logged and the backup command still exits 0.
+The message is `multipart/alternative` (plain text and HTML), sent with `sendmail -t -i -f`, so that address is also the envelope sender. The sender is `znapr@<fqdn>` from `hostname -f`, or the short name from `/etc/hostname` when that command fails. `-F` replaces the whole address. The subject states whether the run failed and how many volumes succeeded. `-E` skips the message when every volume succeeded. If `sendmail` cannot be started or exits non-zero, the error is logged and the backup command still exits 0.
 
 The default report is compact: one row per profile (one YAML file, one remote host). The row shows the host and the profile `name`, then that profile's duration and each volume. A file that did not load has no name, so the row shows its filename. Green is success, including a vanished transfer accepted silently. Amber is a vanished file accepted with a warning. Red is a real failure, and the reason is on the next line. The bar on the left of the header is green when the run is OK and red when it has errors. A vanished volume still counts as ok, so `-E` does not send for that alone.
 
