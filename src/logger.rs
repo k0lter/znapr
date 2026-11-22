@@ -77,6 +77,17 @@ pub fn render_plain(input: &str) -> String {
     console.render_buffer(&segments).trim_end().to_string()
 }
 
+/// Markup for stdout. A pipe or a file gets plain text so ANSI codes are not
+/// counted as columns by `less` or an editor. Logs stay on [`render_markup`]:
+/// they go to stderr, which is still a terminal when only stdout is redirected.
+pub fn render_stdout(input: &str) -> String {
+    if std::io::stdout().is_terminal() {
+        render_markup(input)
+    } else {
+        render_plain(input)
+    }
+}
+
 struct GiltFormatter;
 
 impl<S, N> FormatEvent<S, N> for GiltFormatter

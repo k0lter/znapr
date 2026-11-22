@@ -8,7 +8,7 @@ use tracing::error;
 use crate::backup::config_files;
 use crate::cache::{self, BackupCache, humanize_bytes};
 use crate::config::Config;
-use crate::logger::render_markup;
+use crate::logger::render_stdout;
 
 pub(crate) enum SortBy {
     Name,
@@ -182,7 +182,7 @@ pub(crate) fn print_table(name_header: &str, rows: &[Row], show_headers: bool) {
     ]
     .join("  ");
     if show_headers {
-        println!("{}", render_markup(&header));
+        println!("{}", render_stdout(&header));
     }
 
     for r in rows {
@@ -197,7 +197,7 @@ pub(crate) fn print_table(name_header: &str, rows: &[Row], show_headers: bool) {
         let line = format!(
             "[cfg]{name}[/]  [data]{snaps}[/]  [{expired_tag}]{expired}[/]  [data]{used}[/]  [sep]{pool_pct}[/]  [sep]{last_ok}[/]"
         );
-        println!("{}", render_markup(&line));
+        println!("{}", render_stdout(&line));
     }
 }
 

@@ -7,10 +7,10 @@ use tracing::{debug, error, info};
 use crate::backup::{call, config_files};
 use crate::cache::{self, humanize_bytes, snapshot_expiry};
 use crate::config::Config;
-use crate::logger::render_markup;
+use crate::logger::render_stdout;
 
 fn pln(markup: &str) {
-    println!("{}", render_markup(markup));
+    println!("{}", render_stdout(markup));
 }
 
 pub fn print_summary(line: &str) {
