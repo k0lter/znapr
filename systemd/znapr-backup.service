@@ -1,0 +1,10 @@
+[Unit]
+Description=Znapr Backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment="ZNAPR_ARGS=-C -M root -E"
+EnvironmentFile=-/etc/default/znapr
+ExecStart=/usr/bin/znapr backup $ZNAPR_ARGS

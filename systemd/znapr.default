@@ -1,0 +1,5 @@
+#
+# Overrides ZNAPR_ARGS from znapr-backup.service.
+#
+
+ZNAPR_ARGS="-C -M root -E"
