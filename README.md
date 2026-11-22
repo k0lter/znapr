@@ -31,18 +31,15 @@ zfsroot: tank/backup
 host: mail.example.com
 port: 22
 sshkey: /root/.ssh/backup_ed25519
-vanished: retry
 volumes:
   spool:
     source: /var/mail
     max-days: 30
     excludes:
       - "*.tmp"
-    vanished: ignore
   archive:
     source: /srv/archive
     max-days: 90
-    vanished: error
 ```
 
 | Field | Where | Meaning |
@@ -72,6 +69,17 @@ rsync exit code 24 means some source files disappeared during the transfer. The 
 | `ignore` | Keep the transfer, log a warning, and take the snapshot. |
 | `silent` | Same as `ignore`, with no log line. |
 | `error` | Fail the volume and skip its snapshot. |
+
+Omitting `vanished` means `retry`. A value on a volume replaces the profile policy for that volume only.
+
+```yaml
+vanished: retry
+volumes:
+  spool:
+    source: /var/mail
+    max-days: 30
+    vanished: ignore
+```
 
 ## What a backup does
 
