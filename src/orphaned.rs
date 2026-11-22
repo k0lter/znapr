@@ -86,7 +86,12 @@ fn orphan_datasets<'a>(
     out
 }
 
-pub fn run(config_directory: &Path, targets: &[String], total: bool) -> Result<()> {
+pub fn run(
+    config_directory: &Path,
+    targets: &[String],
+    total: bool,
+    no_headers: bool,
+) -> Result<()> {
     let mut known: HashSet<String> = HashSet::new();
     for path in config_files(config_directory)? {
         match Config::load(path.as_path()) {
@@ -135,7 +140,7 @@ pub fn run(config_directory: &Path, targets: &[String], total: bool) -> Result<(
     if total {
         append_total(&mut rows);
     }
-    print_table("DATASET", &rows);
+    print_table("DATASET", &rows, !no_headers);
 
     Ok(())
 }

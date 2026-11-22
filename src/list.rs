@@ -152,7 +152,7 @@ fn pad_right(s: &str, w: usize) -> String {
     format!("{:>w$}", s)
 }
 
-pub(crate) fn print_table(name_header: &str, rows: &[Row]) {
+pub(crate) fn print_table(name_header: &str, rows: &[Row], show_headers: bool) {
     let headers = [
         name_header,
         "SNAPSHOTS",
@@ -181,7 +181,9 @@ pub(crate) fn print_table(name_header: &str, rows: &[Row]) {
         pad_right(headers[5], w[5]),
     ]
     .join("  ");
-    println!("{}", render_markup(&header));
+    if show_headers {
+        println!("{}", render_markup(&header));
+    }
 
     for r in rows {
         let name = pad_left(&r.name, w[0]);
@@ -206,6 +208,7 @@ pub fn run(
     sort_last: bool,
     reverse: bool,
     total: bool,
+    no_headers: bool,
 ) -> Result<()> {
     let now = Local::now().naive_local();
     let sort_by = if sort_size {
@@ -272,7 +275,7 @@ pub fn run(
     if total {
         append_total(&mut rows);
     }
-    print_table("NAME", &rows);
+    print_table("NAME", &rows, !no_headers);
 
     Ok(())
 }

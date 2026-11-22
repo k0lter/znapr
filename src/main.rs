@@ -105,6 +105,10 @@ enum Commands {
         /// Add a final row with the sums
         #[arg(short = 'T', long = "total")]
         total: bool,
+
+        /// Do not print the column header line
+        #[arg(short = 'H', long = "no-headers")]
+        no_headers: bool,
     },
     /// List znapr snapshots that belong to no configured volume
     Orphaned {
@@ -119,6 +123,10 @@ enum Commands {
         /// Add a final row with the sums
         #[arg(short = 'T', long = "total")]
         total: bool,
+
+        /// Do not print the column header line
+        #[arg(short = 'H', long = "no-headers")]
+        no_headers: bool,
     },
     /// Rebuild the per-backup cache used by `list`
     Recache {
@@ -178,6 +186,7 @@ fn run() -> anyhow::Result<()> {
             sort_last,
             reverse,
             total,
+            no_headers,
         } => list::run(
             &config_directory,
             target.as_deref(),
@@ -185,12 +194,14 @@ fn run() -> anyhow::Result<()> {
             sort_last,
             reverse,
             total,
+            no_headers,
         )?,
         Commands::Orphaned {
             config_directory,
             targets,
             total,
-        } => orphaned::run(&config_directory, &targets, total)?,
+            no_headers,
+        } => orphaned::run(&config_directory, &targets, total, no_headers)?,
         Commands::Recache {
             config_directory,
             target,
