@@ -69,6 +69,7 @@ jobs:
         with:
           bin: znapr
           target: ${{ matrix.target }}
+          include: LICENSE,README.md,systemd
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
